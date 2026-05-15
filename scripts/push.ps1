@@ -14,7 +14,15 @@ param(
     [switch]$SkipPush
 )
 
-$ErrorActionPreference = "Stop"
+# -----------------------------------------------------------------
+# Error handling strategy
+# -----------------------------------------------------------------
+# Git writes non-error info to stderr (warnings, progress, GPG verification).
+# $ErrorActionPreference = "Stop" + native command stderr capture causes
+# false terminations. Instead use "Continue" and check $LASTEXITCODE explicitly
+# after every critical git operation. This is PowerShell best practice for
+# native commands.
+$ErrorActionPreference = "Continue"
 
 # -----------------------------------------------------------------
 # Color helpers
@@ -67,6 +75,10 @@ $HookPath = Join-Path $VaultRoot "scripts\pre-commit"
 if (Test-Path $HookPath) {
     # Stage everything first so hook can scan
     git add -A
+    if ($LASTEXITCODE -ne 0) {
+        Write-Err "git add -A failed (exit $LASTEXITCODE). Aborting."
+        exit 1
+    }
 
     # Run hook via bash (Git for Windows includes bash.exe)
     $BashExe = "C:\Program Files\Git\bin\bash.exe"
@@ -88,6 +100,10 @@ if (Test-Path $HookPath) {
 } else {
     Write-Warn "Pre-commit hook not found at $HookPath — proceeding without scan"
     git add -A
+    if ($LASTEXITCODE -ne 0) {
+        Write-Err "git add -A failed (exit $LASTEXITCODE). Aborting."
+        exit 1
+    }
 }
 
 # -----------------------------------------------------------------
@@ -153,14 +169,20 @@ Write-Ok "Pushed to GitHub"
 
 # -----------------------------------------------------------------
 # 8. Verify Verified badge will show
+# Note: git verify-commit writes verification info to stderr even on success.
+# Global $ErrorActionPreference = "Continue" makes this safe; check $LASTEXITCODE.
 # -----------------------------------------------------------------
 $LatestCommit = git log -1 --pretty=format:"%H"
-$VerifyResult = git verify-commit $LatestCommit 2>&1
-if ($LASTEXITCODE -eq 0) {
+
+$VerifyResult = git verify-commit $LatestCommit 2>&1 | Out-String
+$VerifyExit = $LASTEXITCODE
+
+if ($VerifyExit -eq 0) {
     Write-Ok "Commit signature verified locally: $LatestCommit"
     Write-Info "Check GitHub: https://github.com/JunyoungCho07/security-writeups/commit/$LatestCommit"
 } else {
-    Write-Warn "Local signature verification failed. GitHub may still show Verified if key uploaded correctly."
+    Write-Warn "Local signature verification failed (exit $VerifyExit). GitHub may still show Verified if key uploaded correctly."
+    Write-Warn "Verify output: $VerifyResult"
 }
 
 Write-Host ""

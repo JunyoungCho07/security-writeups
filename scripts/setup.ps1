@@ -4,7 +4,10 @@
 # Run ONCE after copying vault files to final location.
 # =================================================================
 
-$ErrorActionPreference = "Stop"
+# Error handling: see push.ps1 for rationale. Git's stderr usage (warnings,
+# verification info, progress) is non-error but $ErrorActionPreference="Stop"
+# treats it as terminating. Use "Continue" + explicit $LASTEXITCODE checks.
+$ErrorActionPreference = "Continue"
 
 function Write-Info($msg) { Write-Host "ℹ  $msg" -ForegroundColor Cyan }
 function Write-Ok($msg)   { Write-Host "✓ $msg" -ForegroundColor Green }
