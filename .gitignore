@@ -1,0 +1,96 @@
+# =================================================================
+# security-writeups .gitignore
+# CRITICAL: 이 파일이 첫 commit에 포함되어야 leak 방지 작동
+# =================================================================
+
+# -----------------------------------------------------------------
+# 🔴 SECURITY: Password / credential files (NEVER commit)
+# -----------------------------------------------------------------
+**/passwords.txt
+**/password.txt
+**/*password*.txt
+**/.secrets
+**/.env
+**/credentials.json
+**/*.pem
+**/*.key
+**/*_rsa
+**/*_dsa
+**/*_ecdsa
+**/*_ed25519
+**/id_rsa*
+**/id_dsa*
+**/id_ed25519*
+
+# Bandit specific
+bandit_passwords.txt
+bandit*password*
+
+# -----------------------------------------------------------------
+# Obsidian noise (workspace state changes constantly)
+# -----------------------------------------------------------------
+.obsidian/workspace
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/workspace.json.bak
+.obsidian/cache
+.obsidian/graph.json
+.obsidian/canvas.json
+
+# Keep these (committed = consistent setup across devices):
+# .obsidian/app.json
+# .obsidian/appearance.json
+# .obsidian/hotkeys.json
+# .obsidian/community-plugins.json
+# .obsidian/templates.json
+
+# -----------------------------------------------------------------
+# Obsidian trash & temp
+# -----------------------------------------------------------------
+.trash/
+**/.obsidian/snippets/*.tmp
+
+# -----------------------------------------------------------------
+# OS-specific
+# -----------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------
+# Editor backups
+# -----------------------------------------------------------------
+*.bak
+*.tmp
+*.orig
+.vscode/
+.idea/
+
+# -----------------------------------------------------------------
+# Build / runtime artifacts (if any tools added)
+# -----------------------------------------------------------------
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+build/
+
+# -----------------------------------------------------------------
+# Local-only scratch
+# -----------------------------------------------------------------
+_scratch/
+scratch.md
+TODO.local.md
+notes.local.md
+
+# -----------------------------------------------------------------
+# Log files (raw terminal dumps with potential passwords)
+# -----------------------------------------------------------------
+*.log
+terminal_dump_*.txt
+ssh_session_*.txt
