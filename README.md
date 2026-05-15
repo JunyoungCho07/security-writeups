@@ -83,3 +83,5 @@ Educational content. Citations welcome with link back. Code snippets and scripts
 ---
 
 *This vault is managed with Obsidian + Cowork agent. Build system documented in `CLAUDE.md` (project-internal).*
+
+<!-- ssh fix verification -->
