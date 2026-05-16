@@ -62,6 +62,32 @@ if ([string]::IsNullOrEmpty($CurrentEmail)) {
 }
 
 # -----------------------------------------------------------------
+# 3.5. Configure SSH to use Windows native OpenSSH
+# -----------------------------------------------------------------
+# Windows has TWO OpenSSH binaries: Git for Windows' bundled MSYS2 ssh
+# (uses MSYS2 ssh-agent, per-session, no DPAPI) and Windows native OpenSSH
+# (uses Windows ssh-agent service, persistent via DPAPI).
+# When user runs `ssh-add` from PowerShell, key is cached in Windows agent.
+# But git defaults to Git for Windows' SSH -> can't see the cached key
+# -> passphrase prompt on every push.
+# Fix: force git to use Windows native OpenSSH (global config).
+$WindowsSshPath = "C:\Windows\System32\OpenSSH\ssh.exe"
+if (Test-Path $WindowsSshPath) {
+    $SshPathForwardSlash = $WindowsSshPath.Replace('\','/')
+    $CurrentSshCmd = git config --global --get core.sshCommand
+    if ([string]::IsNullOrEmpty($CurrentSshCmd)) {
+        git config --global core.sshCommand "$SshPathForwardSlash"
+        Write-Ok "core.sshCommand set to Windows native OpenSSH (global): $SshPathForwardSlash"
+    } else {
+        Write-Ok "core.sshCommand already configured: $CurrentSshCmd"
+    }
+} else {
+    Write-Warn "Windows native OpenSSH not found at $WindowsSshPath"
+    Write-Warn "Install via: Settings -> Apps -> Optional features -> Add: OpenSSH Client"
+    Write-Warn "Without this, git push will prompt for SSH passphrase every time."
+}
+
+# -----------------------------------------------------------------
 # 4. Add remote (if not present)
 # -----------------------------------------------------------------
 # Use git config to check (avoids stderr noise from `git remote get-url`)

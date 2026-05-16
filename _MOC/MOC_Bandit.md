@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-05-15
+last_updated: 2026-05-16
 tags: [moc, bandit, wargame]
 ---
 
@@ -46,8 +46,9 @@ graph TD
     click L05 "Wargames/Bandit/Level_05.md"
     click L06 "Wargames/Bandit/Level_06.md"
 
-    style L00 fill:#2d3748,stroke:#4a5568,color:#fff
-    style L03 fill:#22543d,stroke:#38a169,color:#fff
+    style L00 fill:#22543d,stroke:#38a169,color:#fff
+    style L01 fill:#22543d,stroke:#38a169,color:#fff
+    style L02 fill:#22543d,stroke:#38a169,color:#fff
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -57,9 +58,9 @@ graph TD
 
 | Level | Title | Status | Difficulty | Time | Tools | New Concepts |
 |---|---|---|---|---|---|---|
-| 00 | SSH connection | 🔴 raw | ★☆☆ | — | ssh | — |
-| 01 | Filename `-` | 🔴 raw | ★☆☆ | — | cat | special-files |
-| 02 | Filename with spaces | 🔴 raw | ★☆☆ | — | cat | shell-escaping |
+| 00 | SSH connection | 🟢 solid | ★☆☆ | 5min | ssh, cat, ls | SSH_Protocol |
+| 01 | Filename `-` | 🟢 solid | ★☆☆ | 15min | cat, ls | Dashed_Filename |
+| 02 | Filename `--spaces--` | 🟢 solid | ★☆☆ | 5min | cat, ls | Shell_Quoting, Option_Flag_Collision |
 | 03 | Hidden file | 🔴 raw | ★☆☆ | — | ls | Hidden_Files |
 | 04 | Human-readable file detect | 🔴 raw | ★☆☆ | — | file, find | File_Type_Detection |
 | 05 | find by size + perms | 🔴 raw | ★★☆ | — | find | Find_Filters |
@@ -74,7 +75,7 @@ graph TD
 ## Progress
 
 ```
-[                              ] 0/34 levels complete
+[###                            ] 3/34 levels complete
 ```
 
 ## Update Protocol
