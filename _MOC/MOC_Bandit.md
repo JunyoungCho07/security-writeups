@@ -31,7 +31,10 @@ graph TD
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
+    L01 -.->|introduces| C_DASH[Concepts/Linux/Dashed_Filename]
     L02 -.->|uses| T_CAT
+    L02 -.->|introduces| C_QUOTE[Concepts/Linux/Shell_Quoting]
+    L02 -.->|introduces| C_OPT[Concepts/Linux/Option_Flag_Collision]
     L03 -.->|uses| T_LS[Tools/ls]
     L03 -.->|introduces| C_HIDDEN[Concepts/Linux/Hidden_Files]
     L04 -.->|uses| T_FILE[Tools/file]
@@ -49,6 +52,7 @@ graph TD
     style L00 fill:#22543d,stroke:#38a169,color:#fff
     style L01 fill:#22543d,stroke:#38a169,color:#fff
     style L02 fill:#22543d,stroke:#38a169,color:#fff
+    style L03 fill:#22543d,stroke:#38a169,color:#fff
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -61,7 +65,7 @@ graph TD
 | 00 | SSH connection | 🟢 solid | ★☆☆ | 5min | ssh, cat, ls | SSH_Protocol |
 | 01 | Filename `-` | 🟢 solid | ★☆☆ | 15min | cat, ls | Dashed_Filename |
 | 02 | Filename `--spaces--` | 🟢 solid | ★☆☆ | 5min | cat, ls | Shell_Quoting, Option_Flag_Collision |
-| 03 | Hidden file | 🔴 raw | ★☆☆ | — | ls | Hidden_Files |
+| 03 | Hidden file (`...`) | 🟢 solid | ★☆☆ | 5min | ls, cat | Hidden_Files |
 | 04 | Human-readable file detect | 🔴 raw | ★☆☆ | — | file, find | File_Type_Detection |
 | 05 | find by size + perms | 🔴 raw | ★★☆ | — | find | Find_Filters |
 | 06 | find by owner/group | 🔴 raw | ★★☆ | — | find | Ownership_Filters |
@@ -75,7 +79,7 @@ graph TD
 ## Progress
 
 ```
-[###                            ] 3/34 levels complete
+[####                           ] 4/34 levels complete
 ```
 
 ## Update Protocol
