@@ -153,18 +153,14 @@ default 인자 `0`까지 처리. `bandit` 만 쳐도 Level 0 진입.
 
 **Q** (Graduate-level): SSH key exchange에서 client와 server 모두 *private key를 노출하지 않고* shared secret을 합의할 수 있는 수학적 기반은 무엇인가? 그리고 이 기반이 깨질 수 있는 두 가지 시나리오(현재 알려진/이론적)를 제시하라.
 
-<details>
-<summary>풀이</summary>
-
-**기반**: Discrete Logarithm Problem (DLP) — 또는 Elliptic Curve Discrete Logarithm Problem (ECDLP).
-
-DH의 경우: $g, p$ 공개, $a, b$ 비밀. $A = g^a \mod p$, $B = g^b \mod p$ 교환. Shared secret = $g^{ab} \mod p$. 도청자가 $g^{ab}$를 계산하려면 $g^a$로부터 $a$를 역산해야 하나, DLP는 sub-exponential time 이상 소요 (현재 알려진 best: General Number Field Sieve, $L_p[1/3, ...]$).
-
-**깨질 시나리오:**
-1. **Quantum computing**: Shor's algorithm이 DLP를 polynomial time에 해결. RSA-2048 / DH-2048급 키는 충분히 큰 양자컴퓨터에서 즉시 깨짐. → 현재 NIST의 post-quantum cryptography 표준화 (CRYSTALS-Kyber 등) 진행 중.
-2. **Weak parameter selection**: 작은 $p$ (≤ 768 bit) 또는 weak prime 사용 시 sub-exponential attack (NFS) 실현 가능. Logjam attack (2015) 사례: export-grade DH (512 bit)는 학술용 클러스터에서 시간 내 해결됨.
-
-</details>
+> [!tip]- 풀이
+> **기반**: Discrete Logarithm Problem (DLP) — 또는 Elliptic Curve Discrete Logarithm Problem (ECDLP).
+>
+> DH의 경우: $g, p$ 공개, $a, b$ 비밀. $A = g^a \mod p$, $B = g^b \mod p$ 교환. Shared secret = $g^{ab} \mod p$. 도청자가 $g^{ab}$를 계산하려면 $g^a$로부터 $a$를 역산해야 하나, DLP는 sub-exponential time 이상 소요 (현재 알려진 best: General Number Field Sieve, $L_p[1/3, ...]$).
+>
+> **깨질 시나리오:**
+> 1. **Quantum computing**: Shor's algorithm이 DLP를 polynomial time에 해결. RSA-2048 / DH-2048급 키는 충분히 큰 양자컴퓨터에서 즉시 깨짐. → 현재 NIST의 post-quantum cryptography 표준화 (CRYSTALS-Kyber 등) 진행 중.
+> 2. **Weak parameter selection**: 작은 $p$ (≤ 768 bit) 또는 weak prime 사용 시 sub-exponential attack (NFS) 실현 가능. Logjam attack (2015) 사례: export-grade DH (512 bit)는 학술용 클러스터에서 시간 내 해결됨.
 
 > [!flashcard]
 > **Q**: SSH가 client에 server를 인증시키는 메커니즘은?

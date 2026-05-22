@@ -110,10 +110,10 @@ last_reviewed: {{date}}
 
 **Q1** (Graduate-level): <Test understanding + extension>
 
-<details>
-<summary>풀이</summary>
-<답 + 추론 과정>
-</details>
+> [!tip]- 풀이
+> <답 + 추론 과정>
+>
+> 핵심: <one-line takeaway>
 
 ---
 

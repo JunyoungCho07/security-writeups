@@ -168,22 +168,18 @@ cat ./-
 
 **Q** (Graduate-level): `cat < -`가 작동하는 이유를 syscall 수준에서 설명하라. 구체적으로, shell이 `<` redirection을 처리할 때 어떤 syscall 시퀀스가 발생하며, 이 과정에서 `-` string이 cat에게 전달되는가 아닌가?
 
-<details>
-<summary>풀이</summary>
-
-`cat < -`를 bash가 처리하는 과정:
-
-1. bash가 명령어 파싱: `cat` (cmd), `< -` (input redirection)
-2. bash: redirection 처리를 위해 `open("-", O_RDONLY)` syscall 실행 — *현재 CWD에서*
-3. 반환된 fd (예: fd=5)를 `dup2(5, STDIN_FILENO=0)` 로 stdin에 연결
-4. `fork()` + `exec("cat")` — 이때 cat의 argv = `["cat"]`, **즉 `-` argument 없음**
-5. cat은 argv[1]이 없으므로 default로 stdin을 읽음 (이미 파일이 연결된 fd=0)
-
-따라서 `-` string은 cat에게 전달되지 않는다. Shell이 file open까지 완료하고 exec 전에 argv를 구성하므로, cat은 stdin convention을 적용할 기회 자체가 없다.
-
-핵심: `cat ./-`는 *cat이 path를 받아 open*, `cat < -`는 *shell이 먼저 open하고 cat은 fd만 상속*.
-
-</details>
+> [!tip]- 풀이
+> `cat < -`를 bash가 처리하는 과정:
+>
+> 1. bash가 명령어 파싱: `cat` (cmd), `< -` (input redirection)
+> 2. bash: redirection 처리를 위해 `open("-", O_RDONLY)` syscall 실행 — *현재 CWD에서*
+> 3. 반환된 fd (예: fd=5)를 `dup2(5, STDIN_FILENO=0)` 로 stdin에 연결
+> 4. `fork()` + `exec("cat")` — 이때 cat의 argv = `["cat"]`, **즉 `-` argument 없음**
+> 5. cat은 argv[1]이 없으므로 default로 stdin을 읽음 (이미 파일이 연결된 fd=0)
+>
+> 따라서 `-` string은 cat에게 전달되지 않는다. Shell이 file open까지 완료하고 exec 전에 argv를 구성하므로, cat은 stdin convention을 적용할 기회 자체가 없다.
+>
+> 핵심: `cat ./-`는 *cat이 path를 받아 open*, `cat < -`는 *shell이 먼저 open하고 cat은 fd만 상속*.
 
 > [!flashcard]
 > **Q**: `cat -`이 stdin을 읽는 이유와, 이를 우회하는 가장 간결한 방법은?

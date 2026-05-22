@@ -110,10 +110,10 @@ Why elegant: <reasoning>
 
 **Q**: <Graduate-level question testing extension of this concept>
 
-<details>
-<summary>풀이</summary>
-<answer with reasoning>
-</details>
+> [!tip]- 풀이
+> <answer with reasoning>
+>
+> 핵심: <one-line takeaway>
 
 > [!flashcard]
 > **Q**: <Core test question>

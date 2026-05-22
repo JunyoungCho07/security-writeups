@@ -180,21 +180,17 @@ cat -- "--spaces in this filename--"
 
 **Q** (Graduate-level): `cat -- "--spaces in this filename--"` 에서 `--`는 어떤 표준에 의해 정의되며, 이 표준을 따르지 않는 프로그램의 예시를 하나 들고, 그 경우 대안적 해결 전략은 무엇인가?
 
-<details>
-<summary>풀이</summary>
-
-**표준**: POSIX IEEE Std 1003.1, Guideline 10 — *"The first `--` argument that is not an option-argument should be accepted as a delimiter indicating the end of options. Any following arguments should be treated as operands, even if they begin with the `-` character."*
-
-**따르지 않는 예**: `find` — `find -- -name foo`는 일부 구현에서 비정상 동작. `find`의 경우 `-name`, `-type` 등의 expression이 positional이므로 `--`의 역할이 다름.
-
-**대안 전략**: 
-1. `./` prefix → 경로로 만들기 (universally works at syscall level)
-2. `find . -name '*pattern*' -print0 | xargs -0 cat` → find로 탐색 후 xargs 파이프라인 (파일명 특수문자 완전 우회)
-3. `python3 -c "open('--filename').read()"` → option parsing이 없는 도구 사용
-
-핵심: POSIX Guideline은 권고사항이지 강제가 아님. `./` prefix는 프로그램 구현과 무관하게 OS 레벨에서 작동하므로 더 범용적.
-
-</details>
+> [!tip]- 풀이
+> **표준**: POSIX IEEE Std 1003.1, Guideline 10 — *"The first `--` argument that is not an option-argument should be accepted as a delimiter indicating the end of options. Any following arguments should be treated as operands, even if they begin with the `-` character."*
+>
+> **따르지 않는 예**: `find` — `find -- -name foo`는 일부 구현에서 비정상 동작. `find`의 경우 `-name`, `-type` 등의 expression이 positional이므로 `--`의 역할이 다름.
+>
+> **대안 전략**:
+> 1. `./` prefix → 경로로 만들기 (universally works at syscall level)
+> 2. `find . -name '*pattern*' -print0 | xargs -0 cat` → find로 탐색 후 xargs 파이프라인 (파일명 특수문자 완전 우회)
+> 3. `python3 -c "open('--filename').read()"` → option parsing이 없는 도구 사용
+>
+> 핵심: POSIX Guideline은 권고사항이지 강제가 아님. `./` prefix는 프로그램 구현과 무관하게 OS 레벨에서 작동하므로 더 범용적.
 
 > [!flashcard]
 > **Q**: 파일명 `--foo`를 cat에게 넘길 때 두 가지 해결법과 각각의 작동 레이어는?
