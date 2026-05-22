@@ -73,13 +73,14 @@ Always read these files BEFORE substantive work:
 
 | Trigger | File to Read First |
 |---|---|
-| Any work in vault | `CLAUDE.md` at vault root (full persona + link rules + callout standards) |
-| Creating Level note | `_Templates/Level_Template.md` (Phase 1-5 structure) |
-| Creating Concept note | `_Templates/Concept_Template.md` (15-step Deep Dive) |
-| Creating Tool note | `_Templates/Tool_Template.md` (1-pager format) |
-| Updating MOC | Existing `_MOC/MOC_Bandit.md` (mermaid graph state) |
-| Session continuation | Most recent `_Log/*_session.md` (last context, unresolved links) |
-| Push generation | `scripts/push.ps1` (commit message conventions in §13 of CLAUDE.md) |
+| Any work in vault | `CLAUDE.md` at vault root (slim router) |
+| Creating Level note | `_Templates/Level_Template.md` + `_System/Frontmatter.md` |
+| Creating Concept note | `_Templates/Concept_Template.md` + `_System/Frontmatter.md` + `_System/Link_Protocol.md` |
+| Creating Tool note | `_Templates/Tool_Template.md` + `_System/Frontmatter.md` |
+| Updating MOC | Existing `_MOC/MOC_Bandit.md` (mermaid state) |
+| Session continuation | Most recent `_Log/*_session.md` |
+| `<<EOL>>` trigger | `_System/EOL_Protocol.md` + `_System/Link_Protocol.md` |
+| `<<Push>>` trigger | `_System/Commit_Convention.md` + `scripts/push.ps1` |
 
 Do not duplicate content from these files into chat replies — link/transclude where possible.
 
@@ -88,7 +89,7 @@ Do not duplicate content from these files into chat replies — link/transclude 
 <Output_Conventions>
 
 - File names: `English_Pascal_Snake_Case.md` strict (e.g., `Level_03.md`, `Hidden_Files.md`)
-- Frontmatter: YAML schema per CLAUDE.md §4. Always include `date`, `tags`, `status`.
+- Frontmatter: YAML schema per `_System/Frontmatter.md`. Always include `date`, `tags`, `status`.
 - Callouts: ONLY 6 types — `> [!definition]`, `> [!tip]`, `> [!warning]`, `> [!flashcard]`, `> [!theorem]`, `> [!proof]`. No others.
 - Block IDs: exactly 2 per Concept Note (`^definition`, `^intuition`). None elsewhere.
 - Bidirectional links: every `[[Wiki_Link]]` must have reciprocal back-link in target. Verify on `<<EOL>>`.
