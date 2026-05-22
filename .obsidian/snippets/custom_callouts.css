@@ -1,0 +1,38 @@
+/* =================================================================
+   Custom Callouts — security-writeups vault
+   -----------------------------------------------------------------
+   CLAUDE.md §[5] 허용 6 callout 중 Obsidian built-in 외 4개 스타일링:
+     - flashcard, definition, theorem, proof
+   built-in 2개 (tip, warning) 는 Obsidian default 사용.
+   Activation: Settings → Appearance → CSS snippets → custom_callouts ON
+   ================================================================= */
+
+/* ── Flashcard: 암기 카드 (magenta, brain icon) ────────────────── */
+.callout[data-callout="flashcard"] {
+  --callout-color: 200, 100, 200;
+  --callout-icon: lucide-brain;
+}
+
+/* ── Definition: 형식 정의 (blue, book icon) ───────────────────── */
+.callout[data-callout="definition"] {
+  --callout-color: 80, 140, 230;
+  --callout-icon: lucide-book-open;
+}
+
+/* ── Theorem: 정리 (purple, sigma icon) ────────────────────────── */
+.callout[data-callout="theorem"] {
+  --callout-color: 150, 100, 240;
+  --callout-icon: lucide-sigma;
+}
+
+/* ── Proof: 증명 (green, check icon) — 접힘 가능하게 권장 ─────── */
+.callout[data-callout="proof"] {
+  --callout-color: 80, 180, 130;
+  --callout-icon: lucide-check-circle;
+}
+
+/* =================================================================
+   Optional: 풀이 callout (quiz 답안용 foldable tip 변형 스타일)
+   `> [!tip]- 풀이` 패턴이 일반 tip과 시각 구분되도록 강조 X.
+   필요 시 별도 `[!answer]` callout 추가 검토.
+   ================================================================= */
