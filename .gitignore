@@ -36,7 +36,6 @@ bandit*password*
 .obsidian/cache
 .obsidian/graph.json
 .obsidian/canvas.json
-.obsidian/appearance.json
 
 # Keep these (committed = consistent setup across devices):
 # .obsidian/app.json
