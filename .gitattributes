@@ -1,0 +1,50 @@
+# Cross-platform line endings — text files always use LF
+# Whitelist approach: only listed extensions get text normalization.
+
+# Markdown / docs
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+
+# Code
+*.py text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+
+# Config / data
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.csv text eol=lf
+*.tsv text eol=lf
+*.env text eol=lf
+*.gitattributes text eol=lf
+*.gitignore text eol=lf
+
+# Binary — explicit to prevent any accidental normalization
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.m4a binary
+*.mp3 binary
+*.mp4 binary
+*.zip binary
+*.tar.gz binary
+*.exe binary
+*.dll binary
