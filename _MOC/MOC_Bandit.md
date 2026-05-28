@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-05-16
+last_updated: 2026-05-28
 tags: [moc, bandit, wargame]
 ---
 
@@ -41,6 +41,13 @@ graph TD
     L05 -.->|uses| T_FIND[Tools/find]
     L06 -.->|uses| T_FIND
 
+    %% Foundational concepts (general-purpose, not tied to single level)
+    C_SUBSHELL[Concepts/Linux/Subshell]
+    C_EXITCODE[Concepts/Linux/Exit_Code]
+    T_FIND -.->|implements| C_SUBSHELL
+    T_FIND -.->|implements| C_EXITCODE
+    L06 -.->|uses| C_EXITCODE
+
     click L00 "Wargames/Bandit/Level_00.md"
     click L01 "Wargames/Bandit/Level_01.md"
     click L02 "Wargames/Bandit/Level_02.md"
@@ -76,10 +83,25 @@ graph TD
 - 🟢 solid — complete 5-phase writeup, reviewed
 - ⭐ mastered — flashcard-recall verified
 
+## Foundational Concepts (general, cross-level)
+
+| Concept | Status | Domain | First Introduced | Why It Matters |
+|---|---|---|---|---|
+| Subshell | 🟡 developing | Linux | chat-session 2026-05-28 | `( )` isolation, `$()`, pipeline subshell semantics — 모든 shell scripting의 hidden mechanic |
+| Exit_Code | 🟡 developing | Linux | chat-session 2026-05-28 | `$?`, `set -e`, `pipefail`, signal coalescing (`128+N`) — control flow의 atomic unit |
+
+## Foundational Tools (general, cross-level)
+
+| Tool | Status | Category | First Used | Mastery Level |
+|---|---|---|---|---|
+| find | 🟡 developing | file-discovery | Level_05 | Tool reference 작성됨 (`Tools/find.md`) |
+
 ## Progress
 
 ```
 [####                           ] 4/34 levels complete
+Concept Atoms: 4 written (Hidden_Files, Shell_Quoting, Option_Flag_Collision, Subshell, Exit_Code — actually 5)
+Tool References: 1 written (find)
 ```
 
 ## Update Protocol
