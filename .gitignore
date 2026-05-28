@@ -94,3 +94,7 @@ notes.local.md
 *.log
 terminal_dump_*.txt
 ssh_session_*.txt
+
+# Nested Obsidian vaults (only root .obsidian/ is canonical)
+**/.obsidian/
+!/.obsidian/
