@@ -71,7 +71,11 @@ if ([string]::IsNullOrEmpty($CurrentEmail)) {
 # But git defaults to Git for Windows' SSH -> can't see the cached key
 # -> passphrase prompt on every push.
 # Fix: force git to use Windows native OpenSSH (global config).
-$WindowsSshPath = "C:\Windows\System32\OpenSSH\ssh.exe"
+# Resolve Windows native OpenSSH dynamically; fall back to the canonical system path
+$WindowsSshPath = (Get-Command ssh -ErrorAction SilentlyContinue).Source
+if (-not $WindowsSshPath -or $WindowsSshPath -notmatch 'OpenSSH') {
+    $WindowsSshPath = "$env:SystemRoot\System32\OpenSSH\ssh.exe"
+}
 if (Test-Path $WindowsSshPath) {
     $SshPathForwardSlash = $WindowsSshPath.Replace('\','/')
     $CurrentSshCmd = git config --global --get core.sshCommand
@@ -110,7 +114,22 @@ $HookDst = Join-Path $VaultRoot ".git\hooks\pre-commit"
 if (Test-Path $HookSrc) {
     Copy-Item -Path $HookSrc -Destination $HookDst -Force
     # Make executable (Git for Windows respects this for hooks)
-    & "C:\Program Files\Git\bin\bash.exe" -c "chmod +x '$($HookDst.Replace('\','/'))'"
+    # Resolve bash dynamically: PATH first, then common install locations
+    $BashExe = (Get-Command bash -ErrorAction SilentlyContinue).Source
+    if (-not $BashExe) {
+        $candidates = @(
+            "C:\Program Files\Git\bin\bash.exe",
+            "C:\Program Files (x86)\Git\bin\bash.exe",
+            "$env:USERPROFILE\scoop\apps\git\current\bin\bash.exe",
+            "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
+        )
+        $BashExe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    }
+    if ($BashExe) {
+        & $BashExe -c "chmod +x '$($HookDst.Replace('\','/'))'"
+    } else {
+        Write-Warn "bash not found — hook installed but may not be executable. Run: chmod +x .git/hooks/pre-commit from Git Bash."
+    }
     Write-Ok "Pre-commit hook installed to .git/hooks/pre-commit"
 } else {
     Write-Warn "scripts/pre-commit not found — security scan will not run automatically"

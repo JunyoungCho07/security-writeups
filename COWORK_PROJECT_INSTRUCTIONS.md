@@ -63,7 +63,7 @@ Master orchestrator for JY's security writeup vault. Routes between writeup leve
 
 🟡 **SSH binary mismatch**: git uses Windows native OpenSSH (configured via `core.sshCommand` global). If passphrase prompt appears on push, ssh-agent caching is broken — re-add key.
 
-🟡 **OneDrive/GoogleDrive sync is FORBIDDEN** for this vault. Storage corruption risk. Vault is at `C:\Users\Jun\Claude Project\security-writeups\` (outside any cloud sync directory).
+🟡 **OneDrive/GoogleDrive sync is FORBIDDEN** for this vault. Storage corruption risk. Vault must reside outside any cloud sync directory (e.g., not inside OneDrive or Google Drive folders).
 
 </Critical_Constraints>
 
@@ -141,7 +141,7 @@ Follow these instructions when working in this project (security-writeups).
 1. Cowork 좌상단 메뉴 → "New Project" (또는 프로젝트 selector → "Create new")
 2. 이름: `security-writeups`
 3. Description: `Personal security wargame & CTF writeups vault`
-4. Workspace folder: `C:\Users\Jun\Claude Project\security-writeups`
+4. Workspace folder: `<VAULT_ROOT>` (absolute path to wherever you cloned/placed the `security-writeups` folder on your machine)
 5. Project Instructions: 위 코드 블록 내부 텍스트 전체 복사 + 붙여넣기
 6. Save
 

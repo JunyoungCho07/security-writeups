@@ -81,17 +81,36 @@ if (Test-Path $HookPath) {
     }
 
     # Run hook via bash (Git for Windows includes bash.exe)
-    $BashExe = "C:\Program Files\Git\bin\bash.exe"
-    if (-not (Test-Path $BashExe)) {
-        $BashExe = "bash"  # fallback to PATH
+    # Resolve bash dynamically: PATH first, then common install locations
+    $BashExe = (Get-Command bash -ErrorAction SilentlyContinue).Source
+    if (-not $BashExe) {
+        $candidates = @(
+            "C:\Program Files\Git\bin\bash.exe",
+            "C:\Program Files (x86)\Git\bin\bash.exe",
+            "$env:USERPROFILE\scoop\apps\git\current\bin\bash.exe",
+            "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
+        )
+        $BashExe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
     }
+    if (-not $BashExe) { throw "bash not found. Install Git for Windows or add bash to PATH." }
 
-    & $BashExe -c "cd '$($VaultRoot.Replace('\','/'))' && ./scripts/pre-commit"
+    # PS cwd is already $VaultRoot (Set-Location at L39) → bash child inherits cwd.
+    # Avoid explicit `cd` inside bash: Git Bash refuses to translate `C:/...` paths
+    # inside single quotes (MSYS path mangling disabled), which would trigger a
+    # false-positive "security violation" report (cd failure ≠ hook failure).
+    & $BashExe -c "./scripts/pre-commit"
     $HookExit = $LASTEXITCODE
 
     if ($HookExit -ne 0) {
-        Write-Err "Pre-commit hook BLOCKED the commit (security violation)."
-        Write-Err "Fix violations, then re-run push.ps1."
+        # Distinguish bash/cd error from hook security failure.
+        # Sentinel convention: hook itself exits 1 on violation; bash startup
+        # errors typically exit 127 (command not found) or 126 (cannot execute).
+        if ($HookExit -eq 126 -or $HookExit -eq 127) {
+            Write-Err "Pre-commit hook FAILED TO START (bash exit $HookExit). Investigate hook permissions or shebang."
+        } else {
+            Write-Err "Pre-commit hook BLOCKED the commit (security violation, exit $HookExit)."
+            Write-Err "Fix violations, then re-run push.ps1."
+        }
         # Unstage to clean state
         git reset
         exit 1
