@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-05-28
+last_updated: 2026-06-01
 tags: [moc, bandit, wargame]
 ---
 
@@ -21,6 +21,11 @@ graph TD
     L04[Level_04<br/>Human-readable detect]
     L05[Level_05<br/>find by size/perms]
     L06[Level_06<br/>find by owner]
+    L07[Level_07<br/>grep pattern match]
+    L08[Level_08<br/>sort+uniq dedup]
+    L09[Level_09<br/>strings extraction]
+    L10[Level_10<br/>base64 decode]
+    L11[Level_11<br/>ROT13 / tr]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -28,6 +33,11 @@ graph TD
     L03 -->|Leads_To| L04
     L04 -->|Leads_To| L05
     L05 -->|Leads_To| L06
+    L06 -->|Leads_To| L07
+    L07 -->|Leads_To| L08
+    L08 -->|Leads_To| L09
+    L09 -->|Leads_To| L10
+    L10 -->|Leads_To| L11
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -40,6 +50,20 @@ graph TD
     L04 -.->|uses| T_FILE[Tools/file]
     L05 -.->|uses| T_FIND[Tools/find]
     L06 -.->|uses| T_FIND
+    L07 -.->|uses| T_GREP[Tools/grep]
+    L07 -.->|introduces| C_REGEX[Concepts/Linux/Regex_Flavors]
+    L08 -.->|uses| T_SORT[Tools/sort]
+    L08 -.->|uses| T_UNIQ[Tools/uniq]
+    L08 -.->|introduces| C_DEDUP[Concepts/Linux/Stream_Deduplication]
+    L09 -.->|uses| T_STRINGS[Tools/strings]
+    L09 -.->|uses| T_GREP
+    L09 -.->|introduces| C_STRINGS[Concepts/Linux/Strings_Extraction]
+    L10 -.->|uses| T_B64[Tools/base64]
+    L10 -.->|introduces| C_B64[Concepts/Linux/Base64_Encoding]
+    L11 -.->|uses| T_TR[Tools/tr]
+    L11 -.->|introduces| C_ROT13[Concepts/Crypto/ROT13_Cipher]
+    C_STRINGS -.->|related| C_REGEX
+    C_STRINGS -.->|confer| C_B64
 
     %% Foundational concepts (general-purpose, not tied to single level)
     C_SUBSHELL[Concepts/Linux/Subshell]
@@ -55,11 +79,21 @@ graph TD
     click L04 "Wargames/Bandit/Level_04.md"
     click L05 "Wargames/Bandit/Level_05.md"
     click L06 "Wargames/Bandit/Level_06.md"
+    click L07 "Wargames/Bandit/Level_07.md"
+    click L08 "Wargames/Bandit/Level_08.md"
+    click L09 "Wargames/Bandit/Level_09.md"
+    click L10 "Wargames/Bandit/Level_10.md"
+    click L11 "Wargames/Bandit/Level_11.md"
 
+    %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
     style L01 fill:#22543d,stroke:#38a169,color:#fff
     style L02 fill:#22543d,stroke:#38a169,color:#fff
     style L03 fill:#22543d,stroke:#38a169,color:#fff
+    style L08 fill:#22543d,stroke:#38a169,color:#fff
+    style L09 stroke:#d69e2e,stroke-width:2px
+    style L10 stroke:#d69e2e,stroke-width:2px
+    style L11 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -76,6 +110,11 @@ graph TD
 | 04 | Human-readable file detect | 🔴 raw | ★☆☆ | — | file, find | File_Type_Detection |
 | 05 | find by size + perms | 🔴 raw | ★★☆ | — | find | Find_Filters |
 | 06 | find by owner/group | 🔴 raw | ★★☆ | — | find | Ownership_Filters |
+| 07 | grep pattern match | 🔴 raw | ★☆☆ | 5min | grep | Regex_Flavors / Grep_Pattern_Matching |
+| 08 | sort + uniq dedup | 🟢 solid | ★☆☆ | 5min | sort, uniq | Stream_Deduplication |
+| 09 | strings extraction | 🟡 developing | ★☆☆ | 8min | strings, grep, xxd | Strings_Extraction |
+| 10 | base64 decode | 🟡 developing | ★☆☆ | 3min | base64 | Base64_Encoding |
+| 11 | ROT13 / tr | 🟡 developing | ★★☆ | 12min | tr, cat | ROT13_Cipher |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -99,9 +138,12 @@ graph TD
 ## Progress
 
 ```
-[####                           ] 4/34 levels complete
-Concept Atoms: 4 written (Hidden_Files, Shell_Quoting, Option_Flag_Collision, Subshell, Exit_Code — actually 5)
-Tool References: 1 written (find)
+[##########                     ] 12/34 level notes written (00–11)
+   └ 🟢 solid: 5 (00,01,02,03,08)   🟡 developing: 3 (09,10,11)   🔴 raw: 4 (04,05,06,07)
+Concept Atoms: 5 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding)
+Tool References: 3 written (find, sort, uniq)
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition
+Pending tools (dangling): strings, grep, xxd, base64, tr, cat
 ```
 
 ## Update Protocol

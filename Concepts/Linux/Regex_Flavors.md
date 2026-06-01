@@ -167,6 +167,7 @@ Pattern String → [Regex Engine] → NFA/DFA → String Matching
 ### Related Concepts
 - [[Concepts/Linux/Grep_Pattern_Matching]] (Tool_For)
 - [[Concepts/Linux/Unix_Pipeline]] (Related)
+- [[Concepts/Linux/Strings_Extraction]] (Related — strings 출력 stream에 grep/PCRE 필터를 적용; Level_09 `strings | grep`)
 
 ### Cross-Domain
 - External: JY_KAIST/02_Concepts/CS_Theory/Formal_Languages (Chomsky hierarchy — same theoretical root)
