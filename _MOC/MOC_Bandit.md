@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-06-01
+last_updated: 2026-06-02
 tags: [moc, bandit, wargame]
 ---
 
@@ -26,6 +26,7 @@ graph TD
     L09[Level_09<br/>strings extraction]
     L10[Level_10<br/>base64 decode]
     L11[Level_11<br/>ROT13 / tr]
+    L12[Level_12<br/>repeated decompression]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -38,6 +39,7 @@ graph TD
     L08 -->|Leads_To| L09
     L09 -->|Leads_To| L10
     L10 -->|Leads_To| L11
+    L11 -->|Leads_To| L12
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -62,8 +64,18 @@ graph TD
     L10 -.->|introduces| C_B64[Concepts/Linux/Base64_Encoding]
     L11 -.->|uses| T_TR[Tools/tr]
     L11 -.->|introduces| C_ROT13[Concepts/Crypto/ROT13_Cipher]
+    L12 -.->|uses| T_XXD[Tools/xxd]
+    L12 -.->|uses| T_FILE
+    L12 -.->|uses| T_GZIP[Tools/gzip]
+    L12 -.->|uses| T_BZIP2[Tools/bzip2]
+    L12 -.->|uses| T_TAR[Tools/tar]
+    L12 -.->|introduces| C_SIG[Concepts/Linux/File_Signatures]
+    L12 -.->|introduces| C_HEXREV[Concepts/Linux/Hexdump_Reversal]
     C_STRINGS -.->|related| C_REGEX
     C_STRINGS -.->|confer| C_B64
+    C_SIG -.->|related| C_HEXREV
+    C_SIG -.->|seeded by| T_FILE
+    L04 -.->|seeds| C_SIG
 
     %% Foundational concepts (general-purpose, not tied to single level)
     C_SUBSHELL[Concepts/Linux/Subshell]
@@ -84,6 +96,7 @@ graph TD
     click L09 "Wargames/Bandit/Level_09.md"
     click L10 "Wargames/Bandit/Level_10.md"
     click L11 "Wargames/Bandit/Level_11.md"
+    click L12 "Wargames/Bandit/Level_12.md"
 
     %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
@@ -94,6 +107,7 @@ graph TD
     style L09 stroke:#d69e2e,stroke-width:2px
     style L10 stroke:#d69e2e,stroke-width:2px
     style L11 stroke:#d69e2e,stroke-width:2px
+    style L12 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -115,6 +129,7 @@ graph TD
 | 09 | strings extraction | 🟡 developing | ★☆☆ | 8min | strings, grep, xxd | Strings_Extraction |
 | 10 | base64 decode | 🟡 developing | ★☆☆ | 3min | base64 | Base64_Encoding |
 | 11 | ROT13 / tr | 🟡 developing | ★★☆ | 12min | tr, cat | ROT13_Cipher |
+| 12 | repeated decompression | 🟡 developing | ★★☆ | 20min | xxd, file, gzip, bzip2, tar, mktemp | File_Signatures, Hexdump_Reversal |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -138,12 +153,12 @@ graph TD
 ## Progress
 
 ```
-[##########                     ] 12/34 level notes written (00–11)
-   └ 🟢 solid: 5 (00,01,02,03,08)   🟡 developing: 3 (09,10,11)   🔴 raw: 4 (04,05,06,07)
-Concept Atoms: 5 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding)
+[###########                    ] 13/34 level notes written (00–12)
+   └ 🟢 solid: 5 (00,01,02,03,08)   🟡 developing: 4 (09,10,11,12)   🔴 raw: 4 (04,05,06,07)
+Concept Atoms: 6 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures)
 Tool References: 3 written (find, sort, uniq)
-Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition
-Pending tools (dangling): strings, grep, xxd, base64, tr, cat
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal
+Pending tools (dangling): strings, grep, xxd, base64, tr, cat, file, gzip, bzip2, tar, mktemp
 ```
 
 ## Update Protocol
