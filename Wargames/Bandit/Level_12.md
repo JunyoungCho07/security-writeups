@@ -62,7 +62,7 @@ $ ssh -p 2220 bandit12@bandit.labs.overthewire.org
 # Password: <password masked>
 
 # /tmp는 sticky + read 제한: 디렉토리 'ls'는 막혀도 mktemp로 작업공간 생성 가능
-bandit12@bandit:~$ mktemp -d
+bandit12@bandit:~$ mktemp -d        # -d: 임시 '파일'이 아니라 임시 '디렉토리'를 생성(기본은 파일)
 /tmp/tmp.<random masked>
 bandit12@bandit:~$ cd /tmp/tmp.<random masked>
 bandit12@bandit:/tmp/...$ cp ~/data.txt data.txt
@@ -78,9 +78,14 @@ data.txt: ASCII text                       # = hexdump를 ASCII로 저장한 것
 # ----------------------
 
 # 핵심 1단계: hexdump → binary
-bandit12@bandit:/tmp/...$ xxd -r data.txt > data2
+bandit12@bandit:/tmp/...$ xxd -r data.txt > data2   # -r: reverse — hexdump를 다시 raw binary로 복원(xxd 정방향의 역연산)
 bandit12@bandit:/tmp/...$ file data2
 data2: gzip compressed data, was "data2.bin", ...
+
+# 플래그 설명 (이하 체인에서 반복 사용)
+#   gzip -d / bzip2 -d : -d = decompress(해제). 기본 동작이 압축이라 명시 필요
+#   tar -xvf           : -x = eXtract(추출), -v = verbose(추출 파일명 출력), -f = file(다음 인자를 아카이브 파일로 지정)
+#                        └ -f는 필수: 없으면 tar가 테이프 장치(stdin)를 읽으려 함
 
 # 이후: file로 정체 확인 → 해제 → 반복 (9 레이어)
 bandit12@bandit:/tmp/...$ mv data2 data2.gz && gzip -d data2.gz      # → bzip2
@@ -134,32 +139,36 @@ The password is <password masked>
 
 **Alternative 1**: 확장자 무관 강제 해제 (mv 제거)
 ```bash
-gzip  -dc < data2 > data2.out    # -c: stdout, 확장자 검사 우회
-bzip2 -dc < data2 > data2.out
+gzip  -dc < data2 > data2.out    # -d: decompress(해제), -c: 결과를 stdout으로(원본 미수정·.gz 확장자 검사 우회)
+bzip2 -dc < data2 > data2.out    # 동일 — -d 해제, -c stdout
 ```
-Trade-off: `mv` 왕복 제거로 깔끔. tar는 여전히 `-xf` 별도.
+Trade-off: `mv` 왕복 제거로 깔끔. tar는 여전히 `-xf`(`-x` 추출, `-f` 파일 지정) 별도.
 
 **Alternative 2**: 만능 해제기
 ```bash
-# 매 레이어를 자동 식별·해제 (binwalk는 시그니처 스캔+추출)
-binwalk -e data2
-# 또는 7z가 다수 포맷을 일괄 처리
-7z x data2
+binwalk -e data2     # -e: --extract — 알려진 시그니처를 스캔해 자동 추출(known formats를 DB대로 떼어냄)
+binwalk -Me data2    # -M: --matryoshka — 추출 결과에 재귀 적용(중첩 압축까지 자동); -e와 합쳐 묶음 플래그
+7z x data2           # x: eXtract with full paths — 디렉토리 구조 보존하며 추출
+                     #    (소문자 e는 경로 무시·평면 추출이라 중첩 구조가 깨짐 → x를 쓰는 이유)
 ```
-Trade-off: 손맛(=학습) 없음. 실무·CTF에선 압도적으로 빠름. 단 binwalk는 중첩이 깊으면 `--matryoshka`(`-M`) 필요.
+Trade-off: 손맛(=학습) 없음. 실무·CTF에선 압도적으로 빠름. 단 단순 `binwalk -e`는 한 겹만 — 9중첩엔 `-M`(matryoshka)로 재귀를 켜야 한다.
 
 **Most elegant** (루프 자동화):
 ```bash
 f=data2
-while file "$f" | grep -qE 'gzip|bzip2|POSIX tar'; do
-  case $(file -b "$f") in
-    gzip*)  mv "$f" "$f.gz";  gzip  -d "$f.gz" ;;
-    bzip2*) mv "$f" "$f.bz2"; bzip2 -d "$f.bz2" ;;
-    *tar*)  tar -xf "$f"; f=$(tar -tf "$f" | head -1) ;;  # 내부 파일명으로 갱신
+while file "$f" | grep -qE 'gzip|bzip2|POSIX tar'; do   # grep -q: quiet(매칭 출력 없이 종료코드만), -E: 확장정규식(| 대안 사용 위해)
+  case $(file -b "$f") in                               # file -b: brief — 파일명 접두사 없이 타입 문자열만 출력(case 매칭용)
+    gzip*)  mv "$f" "$f.gz";  gzip  -d "$f.gz" ;;        # -d: decompress
+    bzip2*) mv "$f" "$f.bz2"; bzip2 -d "$f.bz2" ;;       # -d: decompress
+    *tar*)  tar -xf "$f"; f=$(tar -tf "$f" | head -1) ;; # -x 추출·-f 파일 / -t: list(추출 않고 목록만)·-f 파일; head -1: 첫 줄(=내부 파일명)만
   esac
 done; cat "$f"
 ```
 Why elegant: "정체 식별→해제"라는 루프 불변식을 코드 구조로 그대로 표현. magic number dispatch가 `case`로 1:1 대응.
+- `grep -q`: 출력 억제, 종료코드(0=매칭)만으로 while 조건 판정 → 화면 오염 없음
+- `grep -E`: `gzip|bzip2|...`의 `|`(OR)를 정규식으로 해석시키기 위함(기본 BRE는 `\|` 필요)
+- `file -b`: 접두사 `filename:` 제거 → `case` 패턴이 타입 문자열에 바로 매칭
+- `tar -t`: 추출 없이 목록만 뽑아 내부 파일명을 얻고, `head -1`로 첫 항목만 취해 다음 루프 대상 `f`로 지정
 
 ---
 
