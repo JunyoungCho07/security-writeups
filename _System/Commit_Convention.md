@@ -2,7 +2,7 @@
 doc_type: system_protocol
 purpose: Conventional Commits format for vault
 load_when: User triggers <<Push>>, generating commit messages
-companion: scripts/push.ps1
+companion: scripts/push.sh (macOS/Linux), scripts/push.ps1 (Windows)
 source: extracted from CLAUDE.md v1.0 §13 on 2026-05-19
 ---
 

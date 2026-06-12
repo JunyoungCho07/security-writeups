@@ -22,8 +22,8 @@ Execute these 6 steps in order:
    - Struggle points
    - Forward links / next session targets
 6. **Push Command Suggestion**: Output suggested commit message + push script invocation line. Reference `_System/Commit_Convention.md` for format. **DO NOT execute push from agent.**
+   - macOS/Linux (Bash): `./scripts/push.sh "..."`
    - Windows (PowerShell): `.\scripts\push.ps1 "..."`
-   - macOS/Linux (Bash): `./scripts/push.ps1` is PowerShell-only; use `git add -A && git commit -S -m "..." && git push origin HEAD` directly.
 
 ## Link Verification Output Format
 

@@ -52,7 +52,10 @@ for file in $STAGED_FILES; do
     fi
 
     # Pattern 2: SSH private key headers
-    if echo "$STAGED_CONTENT" | grep -qE 'BEGIN (RSA |DSA |EC |OPENSSH |)PRIVATE KEY'; then
+    # NOTE: optional group uses `( )?`, NOT `( |)` — BSD grep (macOS) rejects
+    # empty alternation branches with "empty (sub)expression" and the check
+    # would silently fail open.
+    if echo "$STAGED_CONTENT" | grep -qE 'BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY'; then
         echo -e "${RED}❌ PRIVATE KEY DETECTED in $file${NC}"
         VIOLATIONS=$((VIOLATIONS + 1))
     fi

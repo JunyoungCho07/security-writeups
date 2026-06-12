@@ -13,8 +13,8 @@ Scope: public portfolio. Cross-vault links (JY_KAIST) → plain "External:" text
 ## [1] Critical Security Constraints 🔴
 
 1. **NEVER commit passwords/credentials.** Mask as `<password masked>` or `[REDACTED]`.
-2. Pre-commit hook scans high-entropy strings. Do NOT bypass with `--no-verify` unless certain it's a false positive (PGP key etc).
-3. All commits GPG-signed (`user.signingkey=E81313B5B651B0D9`).
+2. Pre-commit hook scans high-entropy strings. `--no-verify` is **hard-blocked at the harness layer** (`scripts/claude/bash-guard.sh`); on a confirmed false positive (PGP key etc) the USER runs the bypass themselves, never the agent.
+3. All commits GPG-signed (`user.signingkey=E81313B5B651B0D9`). Disabling gpgsign is also hard-blocked by bash-guard.
 4. Respect OverTheWire ToS — teach the technique, never hand over the answer.
 5. No personal identifiers beyond GitHub handle in commits/notes.
 
@@ -25,6 +25,9 @@ Scope: public portfolio. Cross-vault links (JY_KAIST) → plain "External:" text
 ```
 security-writeups/
 ├── CLAUDE.md, COWORK_PROJECT_INSTRUCTIONS.md
+├── .claude/
+│   ├── settings.json                  ← hooks + permissions (committed)
+│   └── skills/{bandit,deep,tool,eol,push,quick}/SKILL.md
 ├── _System/{Frontmatter, Link_Protocol, EOL_Protocol, Commit_Convention}.md
 ├── _Templates/{Level, Concept, Tool}_Template.md
 ├── _MOC/MOC_{Scope}.md
@@ -32,7 +35,11 @@ security-writeups/
 ├── Wargames/{Bandit,Natas,...}/Level_NN.md
 ├── Concepts/{Linux,Crypto,Network,Web}/{Topic}.md
 ├── Tools/{tool}.md
-└── scripts/{push.ps1, pre-commit, setup.ps1}
+└── scripts/
+    ├── pre-commit                     ← secret scan (git hook source)
+    ├── {setup,push}.sh                ← macOS/Linux
+    ├── {setup,push}.ps1               ← Windows
+    └── claude/{session,bash,write}-guard.sh   ← Claude Code hooks
 ```
 
 ---
@@ -45,20 +52,30 @@ security-writeups/
 
 ---
 
-## [4] Trigger Routing (★ with lazy-load pointers)
+## [4] Trigger Routing (★ harness-native skills + text aliases)
 
-| Trigger | Action | MUST Read Before Acting |
+Each trigger is a Claude Code **skill** (`.claude/skills/`) — the skill body carries the lazy-load contract and hard rules, so invoking the skill IS the routing. Legacy `<<X>>` text triggers remain as aliases: on seeing one, invoke the matching skill.
+
+| Skill | Text alias | Action |
 |---|---|---|
-| `<<Bandit N>>` / `<<Natas N>>` etc | Create `Wargames/{game}/Level_NN.md` | `_Templates/Level_Template.md` + `_System/Frontmatter.md` |
-| (terminal output paste, no trigger) | Auto-populate Solution section of active Level | (current level note context) |
-| `<<Deep {Concept}>>` | Create `Concepts/{domain}/{Concept}.md` | `_Templates/Concept_Template.md` + `_System/Frontmatter.md` + `_System/Link_Protocol.md` |
-| `<<Tool {name}>>` | Create `Tools/{name}.md` | `_Templates/Tool_Template.md` + `_System/Frontmatter.md` |
-| `<<EOL>>` | End-of-Learning protocol | `_System/EOL_Protocol.md` + `_System/Link_Protocol.md` |
-| `<<Push>>` | Commit message draft (DO NOT execute) | `_System/Commit_Convention.md` |
-| `<<Quick>>` | 3-step terse mode (Direct → Boundary → Forward Link) | — |
-| (default) | Full Phase 1-5 deep dive writeup | `_Templates/Level_Template.md` |
+| `/bandit N` | `<<Bandit N>>` / `<<Natas N>>` etc | Create `Wargames/{game}/Level_NN.md` from template |
+| (none) | terminal output paste, no trigger | Auto-populate Solution section of active Level |
+| `/deep Concept` | `<<Deep {Concept}>>` | Create `Concepts/{domain}/{Concept}.md`, 15-step |
+| `/tool name` | `<<Tool {name}>>` | Create `Tools/{name}.md` 1-pager |
+| `/eol` | `<<EOL>>` | End-of-Learning protocol (6 steps) |
+| `/push` | `<<Push>>` | Commit message draft (DO NOT execute) |
+| `/quick Q` | `<<Quick>>` | 3-step terse mode (Direct → Boundary → Forward Link) |
+| (default) | — | Full Phase 1-5 deep dive writeup per `_Templates/Level_Template.md` |
 
 **Wargame code 명시 필수** (e.g., `<<Bandit 3>>`). 모호한 입력("이번 풀이")은 clarification 요청.
+
+### Harness enforcement layer (`.claude/settings.json`)
+
+| Hook | Script | Effect |
+|---|---|---|
+| SessionStart | `scripts/claude/session-guard.sh` | Auto-installs/refreshes `.git/hooks/pre-commit`; verifies GPG config; reports 1-line status |
+| PreToolUse (Bash) | `scripts/claude/bash-guard.sh` | Blocks `git commit --no-verify`/`-n`, `--no-gpg-sign`, `commit.gpgsign false` |
+| PostToolUse (Write\|Edit) | `scripts/claude/write-guard.sh` | Warns when credential-looking strings land in `.md/.txt/.sh/.ps1` (same pattern as pre-commit — keep in sync) |
 
 ---
 
@@ -108,7 +125,7 @@ Block IDs: exactly `^definition` and `^intuition` per Concept Note. Nowhere else
 
 ---
 
-*System Prompt Version: 2.0 (Skill-Pattern)*
-*Refactor date: 2026-05-19*
-*Predecessor: v1.0 (monolith, 2026-05-15)*
+*System Prompt Version: 3.0 (Harness-Native)*
+*Refactor date: 2026-06-13 — triggers promoted to .claude/skills/, security constraints promoted to hooks (session/bash/write guards), macOS scripts added*
+*Predecessors: v2.0 (skill-pattern, 2026-05-19), v1.0 (monolith, 2026-05-15)*
 *Inherits from: JY_KAIST CLAUDE.md*

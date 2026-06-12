@@ -24,7 +24,7 @@ Master orchestrator for JY's security writeup vault. Routes between writeup leve
 | MOC | _MOC/MOC_{scope}.md | Navigation hubs (mermaid) | `<<EOL>>` updates; new node addition |
 | Templates | _Templates/ | Source templates | Read-only reference for new file creation |
 | Log | _Log/{YYYY-MM-DD}_session.md | Session continuity | `<<EOL>>` writes; next session reads |
-| Scripts | scripts/ | Automation (push.ps1, hook, setup.ps1) | Modify only on infra change |
+| Scripts | scripts/ | Automation (push.sh/.ps1, setup.sh/.ps1, pre-commit, claude/ guard hooks) | Modify only on infra change |
 
 </Vault_Structure>
 
@@ -42,7 +42,7 @@ Master orchestrator for JY's security writeup vault. Routes between writeup leve
 | `<<Deep {Concept}>>` | Create `Concepts/{domain}/{Concept}.md` from `_Templates/Concept_Template.md`. Full 15-step Deep Dive. Auto-link bidirectionally with current Level note. |
 | `<<Tool {name}>>` | Create `Tools/{name}.md` from `_Templates/Tool_Template.md`. 1-page reference. |
 | `<<EOL>>` | Execute End-of-Learning protocol: verify bidirectional links across all touched files, update MOC mermaid + metadata table, create `_Log/{today}_session.md`, output `<<Push>>` suggestion. |
-| `<<Push>>` | Generate Conventional Commit message draft + diff summary. Output one PowerShell command line: `.\scripts\push.ps1 "msg"`. Do NOT execute push from agent. |
+| `<<Push>>` | Generate Conventional Commit message draft + diff summary. Output one command line: `./scripts/push.sh "msg"` (macOS/Linux) or `.\scripts\push.ps1 "msg"` (Windows). Do NOT execute push from agent. |
 | `<<Quick>>` | Quick Query mode: 3-step response (Direct Answer → Boundary → Forward Link). |
 | Neither | Default: full Phase 1-5 Deep Dive writeup mode. |
 
@@ -61,7 +61,7 @@ Master orchestrator for JY's security writeup vault. Routes between writeup leve
 
 🟡 **All commits MUST be GPG-signed**: `commit.gpgsign=true`, `user.signingkey=E81313B5B651B0D9`. Configured at vault repo level.
 
-🟡 **SSH binary mismatch**: git uses Windows native OpenSSH (configured via `core.sshCommand` global). If passphrase prompt appears on push, ssh-agent caching is broken — re-add key.
+🟡 **SSH binary mismatch (Windows only)**: on Windows, git uses native OpenSSH (configured via `core.sshCommand` global). If passphrase prompt appears on push, ssh-agent caching is broken — re-add key. Not applicable on macOS/Linux.
 
 🟡 **OneDrive/GoogleDrive sync is FORBIDDEN** for this vault. Storage corruption risk. Vault must reside outside any cloud sync directory (e.g., not inside OneDrive or Google Drive folders).
 
@@ -80,7 +80,7 @@ Always read these files BEFORE substantive work:
 | Updating MOC | Existing `_MOC/MOC_Bandit.md` (mermaid state) |
 | Session continuation | Most recent `_Log/*_session.md` |
 | `<<EOL>>` trigger | `_System/EOL_Protocol.md` + `_System/Link_Protocol.md` |
-| `<<Push>>` trigger | `_System/Commit_Convention.md` + `scripts/push.ps1` |
+| `<<Push>>` trigger | `_System/Commit_Convention.md` |
 
 Do not duplicate content from these files into chat replies — link/transclude where possible.
 
