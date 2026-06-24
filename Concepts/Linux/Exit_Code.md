@@ -6,8 +6,9 @@ tags: [linux, shell, process, ipc, control-flow]
 status: 🟡 developing
 mastery: 45
 first_encountered: (chat-session 2026-05-28)
-reapplied_in: []
-last_reviewed: 2026-05-28
+reapplied_in:
+  - [[Wargames/Bandit/Level_13]]
+last_reviewed: 2026-06-24
 ---
 
 # Exit Code
@@ -234,6 +235,7 @@ echo $?
 
 ### Encountered In
 - (chat-session 2026-05-28) — first conceptual exposition
+- [[Wargames/Bandit/Level_13]] — Better Methods의 `&&` 체인이 exit-code 0 의존 (키 반출 → `chmod` → `ssh` 단계 게이팅)
 - Reapplication expected: every Bandit Level script + all shell scripting 작업.
 
 ### Tools That Implement This

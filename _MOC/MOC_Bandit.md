@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-06-02
+last_updated: 2026-06-24
 tags: [moc, bandit, wargame]
 ---
 
@@ -27,6 +27,7 @@ graph TD
     L10[Level_10<br/>base64 decode]
     L11[Level_11<br/>ROT13 / tr]
     L12[Level_12<br/>repeated decompression]
+    L13[Level_13<br/>SSH key auth]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -40,6 +41,7 @@ graph TD
     L09 -->|Leads_To| L10
     L10 -->|Leads_To| L11
     L11 -->|Leads_To| L12
+    L12 -->|Leads_To| L13
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -71,6 +73,13 @@ graph TD
     L12 -.->|uses| T_TAR[Tools/tar]
     L12 -.->|introduces| C_SIG[Concepts/Linux/File_Signatures]
     L12 -.->|introduces| C_HEXREV[Concepts/Linux/Hexdump_Reversal]
+    L13 -.->|uses| T_SSH
+    L13 -.->|uses| T_SCP[Tools/scp]
+    L13 -.->|uses| T_CHMOD[Tools/chmod]
+    L13 -.->|introduces| C_SSHKEY[Concepts/Network/SSH_Key_Authentication]
+    L13 -.->|introduces| C_FILEPERM[Concepts/Linux/File_Permissions]
+    L13 -.->|uses| C_EXITCODE
+    C_SSHKEY -.->|requires| C_FILEPERM
     C_STRINGS -.->|related| C_REGEX
     C_STRINGS -.->|confer| C_B64
     C_SIG -.->|related| C_HEXREV
@@ -97,6 +106,7 @@ graph TD
     click L10 "Wargames/Bandit/Level_10.md"
     click L11 "Wargames/Bandit/Level_11.md"
     click L12 "Wargames/Bandit/Level_12.md"
+    click L13 "Wargames/Bandit/Level_13.md"
 
     %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
@@ -108,6 +118,7 @@ graph TD
     style L10 stroke:#d69e2e,stroke-width:2px
     style L11 stroke:#d69e2e,stroke-width:2px
     style L12 stroke:#d69e2e,stroke-width:2px
+    style L13 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -130,6 +141,7 @@ graph TD
 | 10 | base64 decode | 🟡 developing | ★☆☆ | 3min | base64 | Base64_Encoding |
 | 11 | ROT13 / tr | 🟡 developing | ★★☆ | 12min | tr, cat | ROT13_Cipher |
 | 12 | repeated decompression | 🟡 developing | ★★☆ | 20min | xxd, file, gzip, bzip2, tar, mktemp | File_Signatures, Hexdump_Reversal |
+| 13 | SSH key auth (private key) | 🟡 developing | ★★☆ | 15min | ssh, scp, chmod, cat | SSH_Key_Authentication, File_Permissions |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -153,12 +165,12 @@ graph TD
 ## Progress
 
 ```
-[###########                    ] 13/34 level notes written (00–12)
-   └ 🟢 solid: 5 (00,01,02,03,08)   🟡 developing: 4 (09,10,11,12)   🔴 raw: 4 (04,05,06,07)
-Concept Atoms: 6 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures)
+[############                   ] 14/34 level notes written (00–13)
+   └ 🟢 solid: 5 (00,01,02,03,08)   🟡 developing: 5 (09,10,11,12,13)   🔴 raw: 4 (04,05,06,07)
+Concept Atoms: 7 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network])
 Tool References: 3 written (find, sort, uniq)
-Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal
-Pending tools (dangling): strings, grep, xxd, base64, tr, cat, file, gzip, bzip2, tar, mktemp
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature
+Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp
 ```
 
 ## Update Protocol
