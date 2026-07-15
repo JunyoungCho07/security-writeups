@@ -6,7 +6,7 @@ title: "Bandit Level 6 → 7"
 difficulty: ★☆☆
 time_spent: 20min
 tags: [bandit, linux, file-discovery, find, stderr-redirect]
-status: 🔴 raw
+status: 🟢 solid
 tools_used: [find, cat]
 new_concepts: [stderr-redirection, shell-history-expansion]
 prerequisites: [Level_05]
@@ -102,6 +102,26 @@ bandit6@bandit:/$ cat $(!!)
 <password masked>
 ```
 
+**이번 세션 실제 풀이** — `-group` 필터로 좁힌 뒤 `find`에 `-exec`를 바로 결합:
+
+```bash
+# -group 없이: 결과 2개 (하나는 canonical store지만 bandit6은 못 읽음)
+bandit6@bandit:~$ find / -user bandit7 -size 33c 2>/dev/null
+/var/lib/dpkg/info/bandit7.password
+/etc/bandit_pass/bandit7          # owner=bandit7,group=bandit7 → bandit6은 Permission denied
+
+# -group bandit6 추가 → 읽을 수 있는 1개로 수렴
+bandit6@bandit:~$ find / -user bandit7 -size 33c -group bandit6 2>/dev/null -exec cat {} \;
+<password masked>
+```
+
+> [!warning]- Pipe(stdin) ≠ Argument — 이번 세션 실수
+> `find ... | cat`, `| more`, `| vi`를 먼저 시도했으나 전부 password가 안 나옴. 파이프는 find가 찾은 **경로 문자열**을 다음 명령의 stdin으로 넘긴다:
+> - `cat` / `more`: stdin으로 들어온 텍스트(=경로)를 그대로 재출력할 뿐, 그 경로를 파일로 열지 않음.
+> - `vi`: stdin이 tty가 아니라 `Input is not from a terminal` 에러.
+>
+> `cat`이 파일을 읽으려면 경로가 **인자(argument)**여야 한다 → `cat /경로` 또는 `find ... -exec cat {} \;` 또는 `cat "$(find ...)"`.
+
 > [!warning] Password Masking
 > 실제 password는 절대 commit하지 마라. `<password masked>` 또는 `[REDACTED]`로 치환.
 
@@ -120,6 +140,9 @@ bandit6@bandit:/$ cat $(!!)
 | `file -user bandit7 ...` | `file` vs `find` 혼동 | `file`: 파일 타입 판별 / `find`: 파일 탐색. 완전히 다른 도구. |
 | `2>/devnull/` | 경로 오타 (`/devnull`은 존재 안 함) | null device 경로는 `/dev/null` (슬래시 포함, `dev` 디렉토리 하위) |
 | `2 > /dev/null` (공백) | 리다이렉션 파싱 오해 | `2>`는 붙여서 써야 함. `2 > /dev/null`은 `2`라는 인자 + stdout redirect로 파싱됨. |
+| `find ... \| cat` (경로만 재출력) | stdin vs argument 혼동 | 파이프는 경로 문자열을 stdin으로 넘김. `cat`이 파일을 열려면 경로가 **인자**여야 함. `find\|cat`은 그 문자열을 그대로 되뱉을 뿐. |
+| `find ... \| more` / `\| vi` | 동일 (stdin으로 착각) | `more`도 경로만 표시. `vi`는 stdin이 tty가 아니라 `Input is not from a terminal` 에러. 셋 다 파일을 안 엶. |
+| `find ... \| long` | 존재하지 않는 명령 | `command not found`. `less`(페이저) 오타로 추정. 어차피 페이저에 파이프해도 파일이 아니라 경로만 보임. |
 
 ### 8. Edge Cases / Limitation
 

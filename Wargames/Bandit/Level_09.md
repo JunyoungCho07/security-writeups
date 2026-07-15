@@ -6,7 +6,7 @@ title: "Bandit Level 9 → 10"
 difficulty: ★☆☆
 time_spent: 8min
 tags: [bandit, linux, text-processing, binary-inspection]
-status: 🟡 developing
+status: 🟢 solid
 tools_used: [strings, grep, xxd]
 new_concepts: [Strings_Extraction]
 prerequisites: [Level_08]
@@ -123,11 +123,12 @@ grep -a '=' data.txt
 ```
 Trade-off: 외부 도구 없이 한 줄. 단, control byte가 그대로 출력돼 터미널 깨짐 위험, password 줄 식별이 strings보다 지저분.
 
-**Alternative 2**: marker가 여러 `=`임을 활용해 정확도 상향
+**Alternative 2**: marker가 여러 `=`임을 활용해 정확도 상향 — *이번 세션에서 실제로 쓴 방법*
 ```bash
-strings data.txt | grep '======'
+strings data.txt | grep "====="
 ```
 Trade-off: 우연히 한두 개 `=`를 포함한 noise run을 배제 → password 후보를 더 좁힘. 일반화엔 marker 길이 가정이 들어감.
+> [!tip] 실측: `grep '='`의 잡음 줄(`,U=\[` 등)이 사라지고 marker 4줄만 남아 password 식별이 즉각적이었음. 다만 한 줄이 `Y========== is`처럼 `=====` **앞에 `Y`**가 붙어 나왔는데, 이는 binary에서 marker 직전의 printable byte(`Y`)가 같은 run으로 이어져 잡힌 `strings` 아티팩트일 뿐 — password와 무관. `grep -oP '={2,}\s*\K\S+'`(Most elegant)를 쓰면 이런 접두 노이즈까지 제거됨.
 
 **Most elegant**:
 ```bash

@@ -6,7 +6,7 @@ title: "Bandit Level 10 → 11"
 difficulty: ★☆☆
 time_spent: 3min
 tags: [bandit, linux, encoding, base64]
-status: 🟡 developing
+status: 🟢 solid
 tools_used: [base64]
 new_concepts: [Base64_Encoding]
 prerequisites: [Level_09]
@@ -66,7 +66,12 @@ The password is <password masked>
 ```
 
 > [!warning] Password Masking
-> `base64 -d` 출력의 `The password is ...` 줄에 bandit11 password가 평문 노출됨 → 반드시 `<password masked>`로 치환 후 commit. encoding은 암호가 아니므로, 인코딩된 원본 문자열을 commit하는 것도 password를 그대로 올리는 것과 동일 — 디코딩 가능하므로 절대 금지.
+> `base64 -d` 출력의 `The password is ...` 줄에 bandit11 password가 평문 노출됨 → 반드시 `<password masked>`로 치환 후 commit. encoding은 암호가 아니므로, 인코딩된 원본 문자열을 commit하는 것도 password를 그대로 올리는 것과 동일 — 디코딩 가능하므로 절대 금지. (위 예시 blob은 secret이 아닌 접두부 `The password is`까지만 노출한 것.)
+
+> [!tip] 이번 세션 흐름 — 정찰 후 디코딩 (Alternative 2 검증)
+> 바로 `base64 -d` 하지 않고 `head data.txt`로 내용을 먼저 확인 → `[A-Za-z0-9+/]` + 끝 `==` 패턴 보고 Base64로 판별한 뒤 디코딩. 노트의 *Alternative 2(정찰 우선)* 습관 그대로.
+> - `cat data` → `No such file`: Tab 자동완성 없이 파일명 축약하다 오타. 실제 파일은 `data.txt`.
+> - `head data.txt -n10`: option을 파일명 **뒤**에 써도 동작 — GNU coreutils가 non-option과 option을 permute하기 때문(`head -n10 data.txt`와 동일). 단 `POSIXLY_CORRECT=1` 환경이면 순서 고정이라 깨질 수 있음.
 
 ### 6. Why It Works
 
