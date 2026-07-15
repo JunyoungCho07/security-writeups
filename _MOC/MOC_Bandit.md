@@ -35,6 +35,9 @@ graph TD
     L18[Level_18<br/>.bashrc trap / ssh cmd]
     L19[Level_19<br/>setuid privesc]
     L20[Level_20<br/>client-server nc]
+    L21[Level_21<br/>cron world-readable dump]
+    L22[Level_22<br/>cron md5 filename]
+    L23[Level_23<br/>cron script injection]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -56,6 +59,9 @@ graph TD
     L17 -->|Leads_To| L18
     L18 -->|Leads_To| L19
     L19 -->|Leads_To| L20
+    L20 -->|Leads_To| L21
+    L21 -->|Leads_To| L22
+    L22 -->|Leads_To| L23
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -117,6 +123,27 @@ graph TD
     L20 -.->|introduces| C_PRIVPORT[Concepts/Network/Privileged_Ports]
     L20 -.->|reapplies| C_NETCAT
     L20 -.->|reapplies| C_SETUID
+    L21 -.->|introduces| C_CRON[Concepts/Linux/Cron]
+    L21 -.->|introduces| C_SCHEDPRIV[Concepts/Linux/Scheduled_Task_Privilege]
+    L21 -.->|uses| T_CAT
+    L21 -.->|uses| T_CRONTAB[Tools/crontab]
+    L21 -.->|reapplies| C_FILEPERM
+    L21 -.->|reapplies| C_SETUID
+    L22 -.->|introduces| C_MD5[Concepts/Crypto/Md5_Hashing]
+    L22 -.->|introduces| C_DETFN[Concepts/Linux/Deterministic_Filename]
+    L22 -.->|uses| T_MD5SUM[Tools/md5sum]
+    L22 -.->|uses| T_CUT[Tools/cut]
+    L22 -.->|reapplies| C_CRON
+    L22 -.->|reapplies| C_FILEPERM
+    L23 -.->|introduces| C_CONFDEP[Concepts/Linux/Confused_Deputy]
+    L23 -.->|introduces| C_CRONINJ[Concepts/Linux/Cron_Script_Injection]
+    L23 -.->|uses| T_MKTEMP[Tools/mktemp]
+    L23 -.->|uses| T_PRINTF[Tools/printf]
+    L23 -.->|uses| T_STAT[Tools/stat]
+    L23 -.->|uses| T_CHMOD
+    L23 -.->|reapplies| C_CRON
+    L23 -.->|reapplies| C_FILEPERM
+    L23 -.->|reapplies| C_SETUID
     C_SSHKEY -.->|requires| C_FILEPERM
     C_STRINGS -.->|related| C_REGEX
     C_STRINGS -.->|confer| C_B64
@@ -152,6 +179,9 @@ graph TD
     click L18 "Wargames/Bandit/Level_18.md"
     click L19 "Wargames/Bandit/Level_19.md"
     click L20 "Wargames/Bandit/Level_20.md"
+    click L21 "Wargames/Bandit/Level_21.md"
+    click L22 "Wargames/Bandit/Level_22.md"
+    click L23 "Wargames/Bandit/Level_23.md"
 
     %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
@@ -172,6 +202,9 @@ graph TD
     style L18 stroke:#d69e2e,stroke-width:2px
     style L19 stroke:#d69e2e,stroke-width:2px
     style L20 stroke:#d69e2e,stroke-width:2px
+    style L21 stroke:#d69e2e,stroke-width:2px
+    style L22 stroke:#d69e2e,stroke-width:2px
+    style L23 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -202,6 +235,9 @@ graph TD
 | 18 | .bashrc trap / ssh cmd | 🟡 developing | ★★☆ | 5min | ssh, cat | Shell_Initialization |
 | 19 | setuid privesc (do-wrapper) | 🟡 developing | ★★☆ | 5min | whoami, cat, find | Setuid |
 | 20 | client-server nc (suconnect) | 🟡 developing | ★★★ | 15min | nc, tmux, printf | Client_Server_Model, Privileged_Ports |
+| 21 | cron world-readable /tmp dump | 🟡 developing | ★★☆ | 10min | cat, cron, chmod | Cron, Scheduled_Task_Privilege |
+| 22 | cron md5-derived filename | 🟡 developing | ★★☆ | 12min | cat, cron, md5sum, cut | Md5_Hashing, Deterministic_Filename |
+| 23 | cron script injection (confused deputy) | 🟡 developing | ★★★ | 45min | cron, mktemp, printf, chmod, stat, id | Confused_Deputy, Cron_Script_Injection |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -215,6 +251,7 @@ graph TD
 |---|---|---|---|---|
 | Subshell | 🟡 developing | Linux | chat-session 2026-05-28 | `( )` isolation, `$()`, pipeline subshell semantics — 모든 shell scripting의 hidden mechanic |
 | Exit_Code | 🟡 developing | Linux | chat-session 2026-05-28 | `$?`, `set -e`, `pipefail`, signal coalescing (`128+N`) — control flow의 atomic unit |
+| Shell_Fundamentals | 🟡 developing (lite) | Linux | Level_23 session 2026-07-15 | `=`할당/`$`확장/quote/fd·redirect/`2>&1`/heredoc/CRLF·shebang/`%`포맷/`chmod`/`install` — 모든 레벨의 shell 기저. 17항 Q&A lite 노트 |
 
 ## Foundational Tools (general, cross-level)
 
@@ -225,12 +262,12 @@ graph TD
 ## Progress
 
 ```
-[##################             ] 21/34 level notes written (00–20)
-   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 7 (14,15,16,17,18,19,20)   🔴 raw: 3 (04,05,07)
+[#####################          ] 24/34 level notes written (00–23)
+   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 10 (14,15,16,17,18,19,20,21,22,23)   🔴 raw: 3 (04,05,07)
 Concept Atoms: 7 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network])
 Tool References: 3 written (find, sort, uniq)
-Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument, SSL_TLS, Port_Scanning, File_Diff, Shell_Initialization, Setuid, Client_Server_Model, Privileged_Ports
-Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo, openssl, nmap, diff, tmux, printf, whoami
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument, SSL_TLS, Port_Scanning, File_Diff, Shell_Initialization, Setuid, Client_Server_Model, Privileged_Ports, Cron, Scheduled_Task_Privilege, Md5_Hashing, Deterministic_Filename, Confused_Deputy, Cron_Script_Injection
+Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo, openssl, nmap, diff, tmux, printf, whoami, crontab, md5sum, cut, stat, id
 ```
 
 ## Update Protocol
