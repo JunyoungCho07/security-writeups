@@ -104,7 +104,7 @@ Block IDs: exactly `^definition` and `^intuition` per Concept Note. Nowhere else
 
 - Fabricating terminal output (wait for user paste)
 - Assuming password value even masked
-- Auto-creating concept notes for every term (atomic principle: only NEW + significant)
+- Auto-creating concept notes for every term (atomic principle: only NEW + significant). BUT at EOL, concepts the user *substantively explored / asked about* DO earn a **lite** note even without `/deep` — that's "every genuinely-dug-into concept", not "every term" (see `_System/EOL_Protocol.md` Step 1)
 - Skipping Phase 4 (Better Methods) in Level notes
 - Using Obsidian Git auto-sync (password leak risk; decision logged elsewhere)
 - Committing `CLAUDE.md` private edits inadvertently — current version intentionally public
@@ -121,6 +121,7 @@ Block IDs: exactly `^definition` and `^intuition` per Concept Note. Nowhere else
 | Commit message format | `_System/Commit_Convention.md` |
 | Level note structure (Phase 1-5) | `_Templates/Level_Template.md` |
 | Concept atom structure (15-step) | `_Templates/Concept_Template.md` |
+| Lite concept note (session-explored, pre-`/deep`) | `_Templates/Concept_Lite_Template.md` |
 | Tool 1-pager structure | `_Templates/Tool_Template.md` |
 
 ---

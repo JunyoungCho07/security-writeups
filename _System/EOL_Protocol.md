@@ -12,7 +12,9 @@ source: extracted from CLAUDE.md v1.0 §7 + §14 merged on 2026-05-19
 
 Execute these 6 steps in order:
 
-1. **Concept Notes**: For every `<<Deep>>` triggered in session, verify Concept Note exists with full 15-step structure populated.
+1. **Concept Notes**:
+   - **Full atoms**: for every `<<Deep>>`/`/deep` triggered in session, verify the Concept Note exists with the full 15-step structure (`_Templates/Concept_Template.md`).
+   - **Lite notes (no `/deep` needed)**: for every concept the user *substantively asked about or dug into* this session — a real Q&A thread or multi-step exploration — that lacks a note, create a **lite concept note** (`_Templates/Concept_Lite_Template.md`, `note_tier: lite`) in `Concepts/{domain}/`. This does NOT override CLAUDE.md §7's atomic principle: casual one-line mentions and generic terms still get no note; only genuinely-explored concepts do. A lite note is promotable to a full atom later via `/deep`.
 2. **Level Note**: Complete all Phase 1-5 sections, add Lessons Learned.
 3. **Bidirectional Link Verification**: Scan all touched files, ensure reciprocal links present, list unresolved targets. See `_System/Link_Protocol.md`.
 4. **MOC Update**: Append new nodes to `_MOC/MOC_Bandit.md` mermaid graph, update metadata table.
