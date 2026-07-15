@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-07-14
+last_updated: 2026-07-15
 tags: [moc, bandit, wargame]
 ---
 
@@ -29,6 +29,12 @@ graph TD
     L12[Level_12<br/>repeated decompression]
     L13[Level_13<br/>SSH key auth]
     L14[Level_14<br/>netcat TCP client]
+    L15[Level_15<br/>SSL/TLS submit]
+    L16[Level_16<br/>port scan + SSL key]
+    L17[Level_17<br/>file diff]
+    L18[Level_18<br/>.bashrc trap / ssh cmd]
+    L19[Level_19<br/>setuid privesc]
+    L20[Level_20<br/>client-server nc]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -44,6 +50,12 @@ graph TD
     L11 -->|Leads_To| L12
     L12 -->|Leads_To| L13
     L13 -->|Leads_To| L14
+    L14 -->|Leads_To| L15
+    L15 -->|Leads_To| L16
+    L16 -->|Leads_To| L17
+    L17 -->|Leads_To| L18
+    L18 -->|Leads_To| L19
+    L19 -->|Leads_To| L20
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -87,6 +99,24 @@ graph TD
     L14 -.->|reapplies| C_STDINARG[Concepts/Linux/Stdin_Vs_Argument]
     L06 -.->|seeds| C_STDINARG
     L10 -.->|reapplies| C_STDINARG
+    L15 -.->|introduces| C_SSLTLS[Concepts/Network/SSL_TLS]
+    L15 -.->|uses| T_OPENSSL[Tools/openssl]
+    L15 -.->|reapplies| C_NETCAT
+    L16 -.->|introduces| C_PORTSCAN[Concepts/Network/Port_Scanning]
+    L16 -.->|uses| T_NMAP[Tools/nmap]
+    L16 -.->|reapplies| C_SSLTLS
+    L16 -.->|reapplies| C_SSHKEY
+    L17 -.->|introduces| C_FILEDIFF[Concepts/Linux/File_Diff]
+    L17 -.->|uses| T_DIFF[Tools/diff]
+    L17 -.->|reapplies| C_DEDUP
+    L18 -.->|introduces| C_SHELLINIT[Concepts/Linux/Shell_Initialization]
+    L18 -.->|uses| T_SSH
+    L19 -.->|introduces| C_SETUID[Concepts/Linux/Setuid]
+    L19 -.->|reapplies| C_FILEPERM
+    L20 -.->|introduces| C_CLISRV[Concepts/Network/Client_Server_Model]
+    L20 -.->|introduces| C_PRIVPORT[Concepts/Network/Privileged_Ports]
+    L20 -.->|reapplies| C_NETCAT
+    L20 -.->|reapplies| C_SETUID
     C_SSHKEY -.->|requires| C_FILEPERM
     C_STRINGS -.->|related| C_REGEX
     C_STRINGS -.->|confer| C_B64
@@ -116,6 +146,12 @@ graph TD
     click L12 "Wargames/Bandit/Level_12.md"
     click L13 "Wargames/Bandit/Level_13.md"
     click L14 "Wargames/Bandit/Level_14.md"
+    click L15 "Wargames/Bandit/Level_15.md"
+    click L16 "Wargames/Bandit/Level_16.md"
+    click L17 "Wargames/Bandit/Level_17.md"
+    click L18 "Wargames/Bandit/Level_18.md"
+    click L19 "Wargames/Bandit/Level_19.md"
+    click L20 "Wargames/Bandit/Level_20.md"
 
     %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
@@ -130,6 +166,12 @@ graph TD
     style L12 fill:#22543d,stroke:#38a169,color:#fff
     style L13 fill:#22543d,stroke:#38a169,color:#fff
     style L14 stroke:#d69e2e,stroke-width:2px
+    style L15 stroke:#d69e2e,stroke-width:2px
+    style L16 stroke:#d69e2e,stroke-width:2px
+    style L17 stroke:#d69e2e,stroke-width:2px
+    style L18 stroke:#d69e2e,stroke-width:2px
+    style L19 stroke:#d69e2e,stroke-width:2px
+    style L20 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -154,6 +196,12 @@ graph TD
 | 12 | repeated decompression | 🟢 solid | ★★☆ | 20min | xxd, file, gzip, bzip2, tar, mktemp | File_Signatures, Hexdump_Reversal |
 | 13 | SSH key auth (private key) | 🟢 solid | ★★☆ | 15min | ssh, scp, chmod, cat | SSH_Key_Authentication, File_Permissions |
 | 14 | netcat TCP client | 🟡 developing | ★☆☆ | 12min | nc, cat, echo | Netcat |
+| 15 | SSL/TLS submit (openssl s_client) | 🟡 developing | ★★☆ | 8min | openssl | SSL_TLS |
+| 16 | port scan → SSL → key | 🟡 developing | ★★★ | 30min | nmap, openssl, ssh, chmod | Port_Scanning |
+| 17 | file diff (passwords) | 🟡 developing | ★☆☆ | 10min | diff, sort, uniq, grep, mktemp | File_Diff |
+| 18 | .bashrc trap / ssh cmd | 🟡 developing | ★★☆ | 5min | ssh, cat | Shell_Initialization |
+| 19 | setuid privesc (do-wrapper) | 🟡 developing | ★★☆ | 5min | whoami, cat, find | Setuid |
+| 20 | client-server nc (suconnect) | 🟡 developing | ★★★ | 15min | nc, tmux, printf | Client_Server_Model, Privileged_Ports |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -177,12 +225,12 @@ graph TD
 ## Progress
 
 ```
-[#############                  ] 15/34 level notes written (00–14)
-   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 1 (14)   🔴 raw: 3 (04,05,07)
+[##################             ] 21/34 level notes written (00–20)
+   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 7 (14,15,16,17,18,19,20)   🔴 raw: 3 (04,05,07)
 Concept Atoms: 7 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network])
 Tool References: 3 written (find, sort, uniq)
-Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument
-Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument, SSL_TLS, Port_Scanning, File_Diff, Shell_Initialization, Setuid, Client_Server_Model, Privileged_Ports
+Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo, openssl, nmap, diff, tmux, printf, whoami
 ```
 
 ## Update Protocol
