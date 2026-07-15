@@ -6,7 +6,7 @@ title: "Bandit Level 13 → 14"
 difficulty: ★★☆
 time_spent: 15min
 tags: [bandit, linux, ssh, authentication, file-permissions]
-status: 🟡 developing
+status: 🟢 solid
 tools_used: [ssh, scp, chmod, cat]
 new_concepts: [SSH_Key_Authentication, File_Permissions]
 prerequisites: [Level_12]
@@ -45,7 +45,7 @@ private key = **인감도장**(나만 가진 도장), public key = 관공서에 
 
 네 가지 메커니즘이 맞물린다:
 
-1. **Key pair / PEM**: `sshkey.private`은 `BEGIN/END RSA PRIVATE KEY` 블록의 PKCS#1 PEM(여기선 2048-bit RSA, ~1679 bytes). 대응 public key는 bandit14의 `authorized_keys`에 이미 등록돼 있어, 이 private key 소지자는 password 없이 로그인.
+1. **Key pair / PEM**: `sshkey.private`은 PEM 형식 private key. **크기: 2026-07-14 재실행 시 scp 전송이 2602 bytes**(이전 기록 ~1679B와 달라 OTW가 키를 교체/재포맷한 정황 — 정확한 타입/bit-size는 `head -1 sshkey.private`로 헤더 확인. 2602B는 RSA-3072 OpenSSH-format과 대략 일치하나 단정 금지). 대응 public key는 bandit14의 `authorized_keys`에 이미 등록돼 있어, 이 private key 소지자는 password 없이 로그인.
 2. **Challenge-response**: 서버가 nonce를 던지면 클라이언트가 *d*로 서명. 서버는 *e*로 검증. private key가 네트워크를 건너지 않음 → 도청해도 무의미.
 3. **Permission gate (client-side)**: scp로 받은 키의 모드(여기선 `0640` — 원본 모드와 로컬 umask에 따라 결정)가 group/other에 열려 있으면 OpenSSH가 `UNPROTECTED PRIVATE KEY FILE` 경고 후 **키를 무시**하고 password로 fallback. 멀티유저 시스템에서 키가 새면 신원 전체가 털리므로 클라이언트가 선제적으로 강제.
 4. **localhost block (OWTW policy)**: 자원 절약 + 학습 의도로 level→level localhost SSH를 차단. 따라서 키를 **내 로컬 머신**으로 `scp`해 외부 IP(`bandit.labs.overthewire.org`)로 재접속.
@@ -63,15 +63,27 @@ $ ssh -p 2220 bandit13@bandit.labs.overthewire.org
 bandit13@bandit:~$ ls
 HINT  sshkey.private
 bandit13@bandit:~$ cat sshkey.private
-# 출력: PEM 형식 RSA private key 블록 (~1679 bytes)
+# 출력: PEM 형식 private key 블록 (2026-07-14 관찰: 2602 bytes)
 # → 본문은 credential이므로 writeup에 옮기지 않는다 (commit 금지)
 
-# --- 삽질 1: 서버에서 곧장 다음 레벨로 SSH → localhost 차단 ---
-bandit13@bandit:~$ ssh -i sshkey.private bandit14@bandit.labs.overthewire.org -p 2220
-#   -i sshkey.private: identity file 지정 — 이 private key로 인증 시도
-#   → "Could not create directory '/home/bandit13/.ssh'" (home read-only라 known_hosts 못 씀)
-#   → "Connecting from localhost is blocked to conserve resources"
-#   교훈: 키를 '내 머신'으로 가져와 외부에서 접속해야 한다
+bandit13@bandit:~$ cat HINT
+# HINT 파일이 공식 확인: "3) The current version of OverTheWire prevents
+#   logging in from one level to another via localhost. Log out, and see 1)"
+
+# --- 삽질 1: 서버 내부에서 다음 레벨로 SSH → 두 포트 다 실패 (내부 hop 불가) ---
+#   -i sshkey.private: identity file 지정(이 private key로 인증 시도)
+#   공통: "Could not create directory '/home/bandit13/.ssh'" (home read-only라 known_hosts 못 씀 — 무해)
+#
+#   ⓐ 게임 포트 2220 (localhost): bandit14 authorized_keys는 '여기' 등록돼 있으나 loopback을 차단
+bandit13@bandit:~$ ssh -i sshkey.private bandit14@localhost -p 2220
+#   → "Connecting from localhost is blocked to conserve resources" → 즉시 disconnect
+#
+#   ⓑ 기본 포트 22 (localhost): 게임 sshd와 '다른' 시스템 sshd → 이 키가 미등록
+bandit13@bandit:~$ ssh -i sshkey.private bandit14@localhost
+#   → "port 22 ... not intended" + "Permission denied (publickey)"
+#
+#   ∴ 키 인증 되는 곳(2220)은 loopback 차단, loopback 되는 곳(22)은 키 없음 → 내부에선 불가.
+#   교훈: 키를 '내 머신'으로 반출해 '외부 IP'에서 2220으로 접속해야 한다 (아래).
 bandit13@bandit:~$ exit
 
 # === 로컬 머신: 키 반출 ===
@@ -89,7 +101,7 @@ $ scp -P 2220 bandit13@bandit.labs.overthewire.org:~/sshkey.private .
 #     target = .                                (현재 디렉토리)
 #   -P 2220: 원격 SSH 포트(대문자!). password 인증으로 파일만 끌어온다
 # Password: <password masked>
-# sshkey.private                       100% 1679 ...
+# sshkey.private                       100% 2602 ...
 
 # --- 삽질 3: 권한 too open → OpenSSH가 키 무시 ---
 $ ssh -i sshkey.private bandit14@bandit.labs.overthewire.org -p 2220
@@ -130,7 +142,8 @@ bandit14의 `authorized_keys`에 대응 public key가 등록돼 있어, 그 priv
 - **`known_hosts` 쓰기 불가**: home이 read-only면 host 검증 경고만 뜨고 진행은 가능(기본 `StrictHostKeyChecking=ask`). bandit13에서 `.ssh` 디렉토리 생성 실패 메시지가 그 증거.
 - **passphrase 보호 키**: 만약 private key가 passphrase로 암호화돼 있으면 `chmod`만으론 부족 — passphrase도 필요. 이 키는 무암호라 권한만 맞추면 끝.
 - **OpenSSH 9+ scp**: 최신 scp는 내부적으로 SFTP 프로토콜을 쓴다. 동작은 동일하나 일부 레거시 서버엔 `-O`로 옛 SCP 프로토콜 강제가 필요한 엣지가 있음.
-- **localhost 차단은 OWTW 정책**: 환경마다 다르다. 차단이 없다면 서버에서 바로 `ssh -i`로도 풀린다 — 이 level의 우회는 정책 산물이지 키 인증의 본질이 아니다.
+- **내부 두 포트가 서로 다른 이유로 실패 (2026-07 확인)**: 게임 sshd(**2220**)는 loopback을 자원 차단; 시스템 sshd(**22**)는 별개 서버라 bandit14 `authorized_keys`가 없어 `Permission denied (publickey)`. 즉 "localhost 차단"은 단일 규칙이 아니라 **두 서버의 서로 다른 거부가 겹친 결과**다. bandit13의 `HINT` 파일이 공식 확인: *"The current version of OverTheWire prevents logging in from one level to another via localhost."*
+- **localhost 차단은 OWTW 정책**: 버전·환경에 종속. 과거엔 서버에서 바로 `ssh -i bandit14@localhost`(포트 22)로 풀리던 시절이 있었으나 **현 버전은 위처럼 양쪽 포트 모두 봉쇄** → 외부 반출이 유일 경로. 이 우회는 정책 산물이지 키 인증 메커니즘의 본질이 아니다.
 
 ---
 
