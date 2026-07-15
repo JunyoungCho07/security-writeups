@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-06-24
+last_updated: 2026-07-14
 tags: [moc, bandit, wargame]
 ---
 
@@ -28,6 +28,7 @@ graph TD
     L11[Level_11<br/>ROT13 / tr]
     L12[Level_12<br/>repeated decompression]
     L13[Level_13<br/>SSH key auth]
+    L14[Level_14<br/>netcat TCP client]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -42,6 +43,7 @@ graph TD
     L10 -->|Leads_To| L11
     L11 -->|Leads_To| L12
     L12 -->|Leads_To| L13
+    L13 -->|Leads_To| L14
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -79,6 +81,12 @@ graph TD
     L13 -.->|introduces| C_SSHKEY[Concepts/Network/SSH_Key_Authentication]
     L13 -.->|introduces| C_FILEPERM[Concepts/Linux/File_Permissions]
     L13 -.->|uses| C_EXITCODE
+    L14 -.->|uses| T_NC[Tools/nc]
+    L14 -.->|uses| T_CAT
+    L14 -.->|introduces| C_NETCAT[Concepts/Network/Netcat]
+    L14 -.->|reapplies| C_STDINARG[Concepts/Linux/Stdin_Vs_Argument]
+    L06 -.->|seeds| C_STDINARG
+    L10 -.->|reapplies| C_STDINARG
     C_SSHKEY -.->|requires| C_FILEPERM
     C_STRINGS -.->|related| C_REGEX
     C_STRINGS -.->|confer| C_B64
@@ -107,18 +115,21 @@ graph TD
     click L11 "Wargames/Bandit/Level_11.md"
     click L12 "Wargames/Bandit/Level_12.md"
     click L13 "Wargames/Bandit/Level_13.md"
+    click L14 "Wargames/Bandit/Level_14.md"
 
     %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
     style L01 fill:#22543d,stroke:#38a169,color:#fff
     style L02 fill:#22543d,stroke:#38a169,color:#fff
     style L03 fill:#22543d,stroke:#38a169,color:#fff
+    style L06 fill:#22543d,stroke:#38a169,color:#fff
     style L08 fill:#22543d,stroke:#38a169,color:#fff
-    style L09 stroke:#d69e2e,stroke-width:2px
-    style L10 stroke:#d69e2e,stroke-width:2px
-    style L11 stroke:#d69e2e,stroke-width:2px
-    style L12 stroke:#d69e2e,stroke-width:2px
-    style L13 stroke:#d69e2e,stroke-width:2px
+    style L09 fill:#22543d,stroke:#38a169,color:#fff
+    style L10 fill:#22543d,stroke:#38a169,color:#fff
+    style L11 fill:#22543d,stroke:#38a169,color:#fff
+    style L12 fill:#22543d,stroke:#38a169,color:#fff
+    style L13 fill:#22543d,stroke:#38a169,color:#fff
+    style L14 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -134,14 +145,15 @@ graph TD
 | 03 | Hidden file (`...`) | 🟢 solid | ★☆☆ | 5min | ls, cat | Hidden_Files |
 | 04 | Human-readable file detect | 🔴 raw | ★☆☆ | — | file, find | File_Type_Detection |
 | 05 | find by size + perms | 🔴 raw | ★★☆ | — | find | Find_Filters |
-| 06 | find by owner/group | 🔴 raw | ★★☆ | — | find | Ownership_Filters |
+| 06 | find by owner/group | 🟢 solid | ★☆☆ | 20min | find, cat | Stderr_Redirection, Shell_History_Expansion |
 | 07 | grep pattern match | 🔴 raw | ★☆☆ | 5min | grep | Regex_Flavors / Grep_Pattern_Matching |
 | 08 | sort + uniq dedup | 🟢 solid | ★☆☆ | 5min | sort, uniq | Stream_Deduplication |
-| 09 | strings extraction | 🟡 developing | ★☆☆ | 8min | strings, grep, xxd | Strings_Extraction |
-| 10 | base64 decode | 🟡 developing | ★☆☆ | 3min | base64 | Base64_Encoding |
-| 11 | ROT13 / tr | 🟡 developing | ★★☆ | 12min | tr, cat | ROT13_Cipher |
-| 12 | repeated decompression | 🟡 developing | ★★☆ | 20min | xxd, file, gzip, bzip2, tar, mktemp | File_Signatures, Hexdump_Reversal |
-| 13 | SSH key auth (private key) | 🟡 developing | ★★☆ | 15min | ssh, scp, chmod, cat | SSH_Key_Authentication, File_Permissions |
+| 09 | strings extraction | 🟢 solid | ★☆☆ | 8min | strings, grep, xxd | Strings_Extraction |
+| 10 | base64 decode | 🟢 solid | ★☆☆ | 3min | base64 | Base64_Encoding |
+| 11 | ROT13 / tr | 🟢 solid | ★★☆ | 12min | tr, cat | ROT13_Cipher |
+| 12 | repeated decompression | 🟢 solid | ★★☆ | 20min | xxd, file, gzip, bzip2, tar, mktemp | File_Signatures, Hexdump_Reversal |
+| 13 | SSH key auth (private key) | 🟢 solid | ★★☆ | 15min | ssh, scp, chmod, cat | SSH_Key_Authentication, File_Permissions |
+| 14 | netcat TCP client | 🟡 developing | ★☆☆ | 12min | nc, cat, echo | Netcat |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -165,12 +177,12 @@ graph TD
 ## Progress
 
 ```
-[############                   ] 14/34 level notes written (00–13)
-   └ 🟢 solid: 5 (00,01,02,03,08)   🟡 developing: 5 (09,10,11,12,13)   🔴 raw: 4 (04,05,06,07)
+[#############                  ] 15/34 level notes written (00–14)
+   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 1 (14)   🔴 raw: 3 (04,05,07)
 Concept Atoms: 7 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network])
 Tool References: 3 written (find, sort, uniq)
-Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature
-Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument
+Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo
 ```
 
 ## Update Protocol
