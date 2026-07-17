@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-07-15
+last_updated: 2026-07-17
 tags: [moc, bandit, wargame]
 ---
 
@@ -38,6 +38,8 @@ graph TD
     L21[Level_21<br/>cron world-readable dump]
     L22[Level_22<br/>cron md5 filename]
     L23[Level_23<br/>cron script injection]
+    L24[Level_24<br/>brute-force PIN]
+    L25[Level_25<br/>restricted shell escape]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -62,6 +64,8 @@ graph TD
     L20 -->|Leads_To| L21
     L21 -->|Leads_To| L22
     L22 -->|Leads_To| L23
+    L23 -->|Leads_To| L24
+    L24 -->|Leads_To| L25
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -144,6 +148,22 @@ graph TD
     L23 -.->|reapplies| C_CRON
     L23 -.->|reapplies| C_FILEPERM
     L23 -.->|reapplies| C_SETUID
+    L24 -.->|introduces| C_BRUTE[Concepts/Security/Brute_Force_Search]
+    L24 -.->|introduces| C_BATCH[Concepts/Network/Connection_Batching]
+    L24 -.->|uses| T_NC
+    L24 -.->|uses| T_SORT
+    L24 -.->|uses| T_UNIQ
+    L24 -.->|reapplies| C_NETCAT
+    L24 -.->|reapplies| C_SHELLFUND[Concepts/Linux/Shell_Fundamentals]
+    L25 -.->|introduces| C_RSHELL[Concepts/Linux/Restricted_Shell_Escape]
+    L25 -.->|uses| T_SSH
+    L25 -.->|uses| T_MORE[Tools/more]
+    L25 -.->|uses| T_VI[Tools/vi]
+    L25 -.->|uses| T_CAT
+    L25 -.->|reapplies| C_SSHKEY
+    L25 -.->|reapplies| C_SHELLFUND
+    L25 -.->|reapplies| C_SHELLINIT
+    L23 -.->|reapplies| C_SHELLFUND
     C_SSHKEY -.->|requires| C_FILEPERM
     C_STRINGS -.->|related| C_REGEX
     C_STRINGS -.->|confer| C_B64
@@ -182,6 +202,8 @@ graph TD
     click L21 "Wargames/Bandit/Level_21.md"
     click L22 "Wargames/Bandit/Level_22.md"
     click L23 "Wargames/Bandit/Level_23.md"
+    click L24 "Wargames/Bandit/Level_24.md"
+    click L25 "Wargames/Bandit/Level_25.md"
 
     %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
@@ -205,6 +227,8 @@ graph TD
     style L21 stroke:#d69e2e,stroke-width:2px
     style L22 stroke:#d69e2e,stroke-width:2px
     style L23 stroke:#d69e2e,stroke-width:2px
+    style L24 stroke:#d69e2e,stroke-width:2px
+    style L25 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -238,6 +262,8 @@ graph TD
 | 21 | cron world-readable /tmp dump | 🟡 developing | ★★☆ | 10min | cat, cron, chmod | Cron, Scheduled_Task_Privilege |
 | 22 | cron md5-derived filename | 🟡 developing | ★★☆ | 12min | cat, cron, md5sum, cut | Md5_Hashing, Deterministic_Filename |
 | 23 | cron script injection (confused deputy) | 🟡 developing | ★★★ | 45min | cron, mktemp, printf, chmod, stat, id | Confused_Deputy, Cron_Script_Injection |
+| 24 | brute-force 4-digit PIN (nc batching) | 🟡 developing | ★★☆ | 20min | nc, bash-loop, sort, uniq | Brute_Force_Search, Connection_Batching |
+| 25 | restricted shell escape (more→vi) | 🟡 developing | ★★★ | 40min | ssh, more, vi, cat | Restricted_Shell_Escape |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -262,12 +288,12 @@ graph TD
 ## Progress
 
 ```
-[#####################          ] 24/34 level notes written (00–23)
-   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 10 (14,15,16,17,18,19,20,21,22,23)   🔴 raw: 3 (04,05,07)
-Concept Atoms: 7 written (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network])
-Tool References: 3 written (find, sort, uniq)
-Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument, SSL_TLS, Port_Scanning, File_Diff, Shell_Initialization, Setuid, Client_Server_Model, Privileged_Ports, Cron, Scheduled_Task_Privilege, Md5_Hashing, Deterministic_Filename, Confused_Deputy, Cron_Script_Injection
-Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo, openssl, nmap, diff, tmux, printf, whoami, crontab, md5sum, cut, stat, id
+[######################         ] 26/34 level notes written (00–25)
+   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 12 (14,15,16,17,18,19,20,21,22,23,24,25)   🔴 raw: 3 (04,05,07)
+Concept Atoms: 7 full (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network]) + 2 lite (Shell_Fundamentals, Restricted_Shell_Escape)
+Tool References: 4 written (find, sort, uniq, more)
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument, SSL_TLS, Port_Scanning, File_Diff, Shell_Initialization, Setuid, Client_Server_Model, Privileged_Ports, Cron, Scheduled_Task_Privilege, Md5_Hashing, Deterministic_Filename, Confused_Deputy, Cron_Script_Injection, Brute_Force_Search, Connection_Batching
+Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo, openssl, nmap, diff, tmux, printf, whoami, crontab, md5sum, cut, stat, id, vi
 ```
 
 ## Update Protocol
