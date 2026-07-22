@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Bandit
-last_updated: 2026-07-17
+last_updated: 2026-07-23
 tags: [moc, bandit, wargame]
 ---
 
@@ -40,6 +40,13 @@ graph TD
     L23[Level_23<br/>cron script injection]
     L24[Level_24<br/>brute-force PIN]
     L25[Level_25<br/>restricted shell escape]
+    L26[Level_26<br/>setuid env-wrapper]
+    L27[Level_27<br/>git clone over SSH]
+    L28[Level_28<br/>git history secret]
+    L29[Level_29<br/>git branch secret]
+    L30[Level_30<br/>git tag secret]
+    L31[Level_31<br/>git push / pre-receive]
+    L32[Level_32<br/>UPPERCASE shell $0]
 
     L00 -->|Leads_To| L01
     L01 -->|Leads_To| L02
@@ -66,6 +73,13 @@ graph TD
     L22 -->|Leads_To| L23
     L23 -->|Leads_To| L24
     L24 -->|Leads_To| L25
+    L25 -->|Leads_To| L26
+    L26 -->|Leads_To| L27
+    L27 -->|Leads_To| L28
+    L28 -->|Leads_To| L29
+    L29 -->|Leads_To| L30
+    L30 -->|Leads_To| L31
+    L31 -->|Leads_To| L32
 
     L00 -.->|uses| T_SSH[Tools/ssh]
     L01 -.->|uses| T_CAT[Tools/cat]
@@ -163,6 +177,42 @@ graph TD
     L25 -.->|reapplies| C_SSHKEY
     L25 -.->|reapplies| C_SHELLFUND
     L25 -.->|reapplies| C_SHELLINIT
+    L26 -.->|reapplies| C_SETUID
+    L26 -.->|reapplies| C_STRINGS
+    L26 -.->|introduces| C_TRIAGE[Concepts/Linux/Static_Binary_Triage]
+    L26 -.->|uses| T_FILE
+    L26 -.->|uses| T_STRINGS
+    L26 -.->|uses| T_CAT
+    L26 -.->|uses| T_ID[Tools/id]
+    L26 -.->|reapplies| C_FILEPERM
+    L26 -.->|requires| L25
+    L27 -.->|introduces| C_GITSSH[Concepts/Network/Git_Over_SSH]
+    L27 -.->|uses| T_GIT[Tools/git]
+    L27 -.->|uses| T_SSH
+    L27 -.->|uses| T_CAT
+    L27 -.->|uses| T_TREE[Tools/tree]
+    L27 -.->|reapplies| C_SSHKEY
+    L27 -.->|reapplies| C_SHELLFUND
+    L27 -.->|requires| L26
+    L28 -.->|introduces| C_GITOBJ[Concepts/Linux/Git_Object_Model]
+    L28 -.->|uses| T_GIT
+    L28 -.->|reapplies| C_GITSSH
+    L29 -.->|reapplies| C_GITOBJ
+    L29 -.->|reapplies| C_GITSSH
+    L29 -.->|uses| T_GIT
+    L30 -.->|reapplies| C_GITOBJ
+    L30 -.->|reapplies| C_GITSSH
+    L30 -.->|uses| T_GIT
+    L31 -.->|introduces| C_GITHOOK[Concepts/Linux/Git_Server_Side_Hooks]
+    L31 -.->|reapplies| C_GITOBJ
+    L31 -.->|reapplies| C_GITSSH
+    L31 -.->|uses| T_GIT
+    L31 -.->|uses| T_VI
+    L32 -.->|reapplies| C_RSHELL
+    L32 -.->|reapplies| C_SETUID
+    L32 -.->|reapplies| C_SHELLFUND
+    L32 -.->|uses| T_FILE
+    L32 -.->|uses| T_CAT
     L23 -.->|reapplies| C_SHELLFUND
     C_SSHKEY -.->|requires| C_FILEPERM
     C_STRINGS -.->|related| C_REGEX
@@ -204,6 +254,13 @@ graph TD
     click L23 "Wargames/Bandit/Level_23.md"
     click L24 "Wargames/Bandit/Level_24.md"
     click L25 "Wargames/Bandit/Level_25.md"
+    click L26 "Wargames/Bandit/Level_26.md"
+    click L27 "Wargames/Bandit/Level_27.md"
+    click L28 "Wargames/Bandit/Level_28.md"
+    click L29 "Wargames/Bandit/Level_29.md"
+    click L30 "Wargames/Bandit/Level_30.md"
+    click L31 "Wargames/Bandit/Level_31.md"
+    click L32 "Wargames/Bandit/Level_32.md"
 
     %% Filled = 🟢 solid; outlined = 🟡 developing / 🔴 raw
     style L00 fill:#22543d,stroke:#38a169,color:#fff
@@ -229,6 +286,13 @@ graph TD
     style L23 stroke:#d69e2e,stroke-width:2px
     style L24 stroke:#d69e2e,stroke-width:2px
     style L25 stroke:#d69e2e,stroke-width:2px
+    style L26 stroke:#d69e2e,stroke-width:2px
+    style L27 stroke:#d69e2e,stroke-width:2px
+    style L28 stroke:#d69e2e,stroke-width:2px
+    style L29 stroke:#d69e2e,stroke-width:2px
+    style L30 stroke:#d69e2e,stroke-width:2px
+    style L31 stroke:#d69e2e,stroke-width:2px
+    style L32 stroke:#d69e2e,stroke-width:2px
 ```
 
 > Legend: solid arrow = level progression, dashed arrow = uses tool/introduces concept.
@@ -264,6 +328,13 @@ graph TD
 | 23 | cron script injection (confused deputy) | 🟡 developing | ★★★ | 45min | cron, mktemp, printf, chmod, stat, id | Confused_Deputy, Cron_Script_Injection |
 | 24 | brute-force 4-digit PIN (nc batching) | 🟡 developing | ★★☆ | 20min | nc, bash-loop, sort, uniq | Brute_Force_Search, Connection_Batching |
 | 25 | restricted shell escape (more→vi) | 🟡 developing | ★★★ | 40min | ssh, more, vi, cat | Restricted_Shell_Escape |
+| 26 | setuid env-wrapper (bandit27-do) | 🟡 developing | ★★☆ | 10min | file, cat, id, whoami | — (reapplies Setuid; env-wrapper + file/strings triage) |
+| 27 | git clone over SSH (non-std port) | 🟡 developing | ★★☆ | 15min | git, ssh, cat, tree | Git_Over_SSH (URL authority/port, upload-pack, secrets-in-VCS) |
+| 28 | git history secret (verify-pack) | 🟡 developing | ★★☆ | 12min | git, cat, tree | Git_Object_Model (blob/tree/commit/tag, content-addressable, pack/delta, reachability) |
+| 29 | git branch secret (remote-tracking) | 🟡 developing | ★★☆ | 10min | git, cat, tree | — (reapplies Git_Object_Model; branch/remote-tracking ref) |
+| 30 | git tag secret (lightweight tag) | 🟡 developing | ★★★ | 12min | git, cat, tree | — (reapplies Git_Object_Model; lightweight vs annotated tag) |
+| 31 | git push / pre-receive hook | 🟡 developing | ★★★ | 20min | git, vi, cat, tree | Git_Server_Side_Hooks (push write-path, pre-receive gate/quarantine, gitignore add -f) |
+| 32 | UPPERCASE shell escape ($0) | 🟡 developing | ★★☆ | 10min | file, cat | — (reapplies Restricted_Shell_Escape + Setuid; $0 filter-invariant, setuid sticky-uid) |
 
 ## Status Legend
 - 🔴 raw — captured but not formally written
@@ -278,6 +349,9 @@ graph TD
 | Subshell | 🟡 developing | Linux | chat-session 2026-05-28 | `( )` isolation, `$()`, pipeline subshell semantics — 모든 shell scripting의 hidden mechanic |
 | Exit_Code | 🟡 developing | Linux | chat-session 2026-05-28 | `$?`, `set -e`, `pipefail`, signal coalescing (`128+N`) — control flow의 atomic unit |
 | Shell_Fundamentals | 🟡 developing (lite) | Linux | Level_23 session 2026-07-15 | `=`할당/`$`확장/quote/fd·redirect/`2>&1`/heredoc/CRLF·shebang/`%`포맷/`chmod`/`install` — 모든 레벨의 shell 기저. 17항 Q&A lite 노트 |
+| Setuid | 🟡 developing (lite) | Linux | Level_19 (deep-dived L32 session 2026-07-22) | RUID/EUID/saved-UID, setuid bit(04000), `setreuid` sticky uid, `bash -p` privilege drop — do-wrapper/privesc 기저 |
+| Process_Creation | 🟡 developing (lite) | Linux | L32 EOL Q&A 2026-07-22 | fork/execve/waitpid, `system()`=`sh -c`, `$0`=argv0, exec vs nest, syscall/ABI/userland/architecture — "프로그램이 프로그램을 어떻게 실행하나" |
+| Tty_And_Terminals | 🟡 developing (lite) | Linux | L32 EOL Q&A 2026-07-22 | tty/pty, foreground process group, isatty, interactive vs non-interactive — 키보드 독점(VM capture 직관) |
 
 ## Foundational Tools (general, cross-level)
 
@@ -288,12 +362,12 @@ graph TD
 ## Progress
 
 ```
-[######################         ] 26/34 level notes written (00–25)
-   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 12 (14,15,16,17,18,19,20,21,22,23,24,25)   🔴 raw: 3 (04,05,07)
-Concept Atoms: 7 full (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network]) + 2 lite (Shell_Fundamentals, Restricted_Shell_Escape)
+[#############################  ] 33/34 level notes written (00–32)
+   └ 🟢 solid: 11 (00,01,02,03,06,08,09,10,11,12,13)   🟡 developing: 19 (14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32)   🔴 raw: 3 (04,05,07)
+Concept Atoms: 7 full (Subshell, Exit_Code, Regex_Flavors, Strings_Extraction, Base64_Encoding, File_Signatures, SSH_Key_Authentication[Network]) + 9 lite (Shell_Fundamentals, Restricted_Shell_Escape, Setuid, Static_Binary_Triage, Git_Over_SSH[Network], Git_Object_Model, Git_Server_Side_Hooks, Process_Creation, Tty_And_Terminals)
 Tool References: 4 written (find, sort, uniq, more)
-Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument, SSL_TLS, Port_Scanning, File_Diff, Shell_Initialization, Setuid, Client_Server_Model, Privileged_Ports, Cron, Scheduled_Task_Privilege, Md5_Hashing, Deterministic_Filename, Confused_Deputy, Cron_Script_Injection, Brute_Force_Search, Connection_Batching
-Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo, openssl, nmap, diff, tmux, printf, whoami, crontab, md5sum, cut, stat, id, vi
+Pending atoms (dangling): ROT13_Cipher, Stream_Deduplication, Pipe_Composition, Hexdump_Reversal, File_Permissions, Asymmetric_Cryptography, Digital_Signature, Netcat, Stdin_Vs_Argument, SSL_TLS, Port_Scanning, File_Diff, Shell_Initialization, Client_Server_Model, Privileged_Ports, Cron, Scheduled_Task_Privilege, Md5_Hashing, Deterministic_Filename, Confused_Deputy, Cron_Script_Injection, Brute_Force_Search, Connection_Batching
+Pending tools (dangling): strings, grep, xxd, base64, tr, ssh, scp, chmod, ssh-keygen, cat, file, gzip, bzip2, tar, mktemp, nc, echo, openssl, nmap, diff, tmux, printf, whoami, crontab, md5sum, cut, stat, id, vi, git, tree
 ```
 
 ## Update Protocol
