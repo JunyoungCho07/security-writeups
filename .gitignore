@@ -94,6 +94,14 @@ TODO.local.md
 notes.local.md
 
 # -----------------------------------------------------------------
+# 🔴 pwn.college — platform PROHIBITS public writeups.
+# Entire dir is LOCAL-ONLY: never commit / push / `git add -f`.
+# (Only GENERAL concept theory — no flags, no challenge-specifics —
+#  may be atomized into the public Concepts/.)
+# -----------------------------------------------------------------
+Wargames/Pwn_College/
+
+# -----------------------------------------------------------------
 # Log files (raw terminal dumps with potential passwords)
 # -----------------------------------------------------------------
 *.log
