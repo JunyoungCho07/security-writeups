@@ -30,9 +30,28 @@ git config user.signingkey "E81313B5B651B0D9"
 ok "GPG signing configured (key: $(git config --get user.signingkey))"
 
 # --- 3. Identity ----------------------------------------------------
-[ -z "$(git config --get user.name)" ]  && git config user.name "Junyoung Cho"
-[ -z "$(git config --get user.email)" ] && git config user.email "chojunyoung070523@gmail.com"
-ok "Identity: $(git config --get user.name) <$(git config --get user.email)>"
+# This repository is PUBLIC and this script is committed to it, so no personal
+# identifier is hardcoded here (CLAUDE.md §1.5). Set the identity yourself, or
+# export VAULT_GIT_NAME / VAULT_GIT_EMAIL before running:
+#   git config user.name  "<your handle>"
+#   git config user.email "<your commit email>"
+# GitHub's noreply address (ID+handle@users.noreply.github.com) keeps a real
+# address out of the public commit log.
+if [ -z "$(git config --get user.name)" ]; then
+    if [ -n "${VAULT_GIT_NAME:-}" ]; then
+        git config user.name "$VAULT_GIT_NAME"
+    else
+        warn "user.name is unset — set it before committing."
+    fi
+fi
+if [ -z "$(git config --get user.email)" ]; then
+    if [ -n "${VAULT_GIT_EMAIL:-}" ]; then
+        git config user.email "$VAULT_GIT_EMAIL"
+    else
+        warn "user.email is unset — set it before committing."
+    fi
+fi
+ok "Identity: $(git config --get user.name || echo '<unset>') <$(git config --get user.email || echo '<unset>')>"
 
 # --- 4. Remote ------------------------------------------------------
 if [ -z "$(git config --get remote.origin.url || true)" ]; then

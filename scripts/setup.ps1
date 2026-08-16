@@ -47,16 +47,28 @@ Write-Ok "GPG signing key set: $ConfiguredKey"
 $CurrentName  = git config --get user.name
 $CurrentEmail = git config --get user.email
 
+# This repository is PUBLIC and this script is committed to it, so no personal
+# identifier is hardcoded here (CLAUDE.md §1.5). Set the identity yourself, or
+# set $env:VAULT_GIT_NAME / $env:VAULT_GIT_EMAIL before running. GitHub's
+# noreply address keeps a real address out of the public commit log.
 if ([string]::IsNullOrEmpty($CurrentName)) {
-    git config user.name "Junyoung Cho"
-    Write-Ok "user.name set: Junyoung Cho"
+    if ($env:VAULT_GIT_NAME) {
+        git config user.name "$env:VAULT_GIT_NAME"
+        Write-Ok "user.name set from VAULT_GIT_NAME"
+    } else {
+        Write-Warn "user.name is unset - set it before committing."
+    }
 } else {
     Write-Ok "user.name already set: $CurrentName"
 }
 
 if ([string]::IsNullOrEmpty($CurrentEmail)) {
-    git config user.email "chojunyoung070523@gmail.com"
-    Write-Ok "user.email set: chojunyoung070523@gmail.com"
+    if ($env:VAULT_GIT_EMAIL) {
+        git config user.email "$env:VAULT_GIT_EMAIL"
+        Write-Ok "user.email set from VAULT_GIT_EMAIL"
+    } else {
+        Write-Warn "user.email is unset - set it before committing."
+    }
 } else {
     Write-Ok "user.email already set: $CurrentEmail"
 }

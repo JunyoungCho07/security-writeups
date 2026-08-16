@@ -10,8 +10,12 @@ source: extracted from CLAUDE.md v1.0 §7 + §14 merged on 2026-05-19
 
 ## Execution Order
 
-Execute these 6 steps in order:
+Execute these steps in order:
 
+0. **Drain the parking lot.** `_Log/_Parking_Lot.md` holds questions raised
+   mid-session. Each entry becomes a lite concept note, a forward-link line in
+   the session log, or is deleted as answered — the file ends the session empty.
+   This runs first because it creates notes that step 3 then has to verify.
 1. **Concept Notes**:
    - **Full atoms**: for every `<<Deep>>`/`/deep` triggered in session, verify the Concept Note exists with the full 15-step structure (`_Templates/Concept_Template.md`).
    - **Lite notes (no `/deep` needed)**: for every concept the user *substantively asked about or dug into* this session — a real Q&A thread or multi-step exploration — that lacks a note, create a **lite concept note** (`_Templates/Concept_Lite_Template.md`, `note_tier: lite`) in `Concepts/{domain}/`. This does NOT override CLAUDE.md §7's atomic principle: casual one-line mentions and generic terms still get no note; only genuinely-explored concepts do. A lite note is promotable to a full atom later via `/deep`.
@@ -23,9 +27,12 @@ Execute these 6 steps in order:
    - Tools first-used
    - Struggle points
    - Forward links / next session targets
-6. **Push Command Suggestion**: Output suggested commit message + push script invocation line. Reference `_System/Commit_Convention.md` for format. **DO NOT execute push from agent.**
-   - macOS/Linux (Bash): `./scripts/push.sh "..."`
-   - Windows (PowerShell): `.\scripts\push.ps1 "..."`
+6. **Commit Plan**: invoke `/commit`. Output a **thematic** sequence — one
+   concern per commit, `git add` + `git commit -S -m …` per theme, `git push`
+   last. Reference `_System/Commit_Convention.md` for the message format.
+   **DO NOT execute any of it.** JY runs the commits; the signature is his.
+   (`scripts/push.sh` squashes everything into one commit and is not how he
+   works — do not suggest it.)
 
 ## Link Verification Output Format
 

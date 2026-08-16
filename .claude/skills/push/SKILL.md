@@ -1,21 +1,14 @@
 ---
 name: push
-description: Draft a Conventional Commit message and the push command for current changes. DRAFT ONLY — never executes git commit or push. Use when the user types <<Push>> or /push.
+description: Alias for /commit, kept so <<Push>> and /push still work. Commit plans are drafted, never executed.
+disable-model-invocation: true
 ---
 
-# Push Draft (DOES NOT EXECUTE)
+# Superseded by `/commit`
 
-## Steps (in order)
+`scripts/push.sh` squashes everything into one commit; JY commits by theme
+instead, so the drafting contract moved to `.claude/skills/commit/SKILL.md`.
 
-1. **Read first**: `_System/Commit_Convention.md`.
-2. Run `git status` and `git diff --stat` to summarize what changed.
-3. Pre-flight secret check: scan changed files for unmasked credential-looking strings (the pre-commit hook is the final gate, but catch it here first).
-4. Draft the commit message per convention (`type(scope): description`).
-5. Output exactly one suggested command line and stop:
-   - macOS/Linux: `./scripts/push.sh "type(scope): message"`
-   - Windows: `.\scripts\push.ps1 "type(scope): message"`
+**Invoke `/commit`** and follow it exactly.
 
-## Hard rules
-
-- **NEVER execute** `git commit`, `git push`, or the push scripts. The user runs the command (GPG pinentry needs their passphrase anyway).
-- Never suggest `--no-verify`.
+Kept only as a typed alias — it no longer fires on its own. Safe to delete.
