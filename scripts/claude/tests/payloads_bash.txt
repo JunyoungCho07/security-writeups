@@ -230,6 +230,29 @@ ALLOW|python3 -c "import ast; ast.parse(open('X').read())"
 BLOCK|GIT_CONFIG_GLOBAL=/tmp/evil.cfg git commit -m x
 BLOCK|GIT_CONFIG_SYSTEM=/tmp/evil.cfg git status
 # read-only git on a no-publish path is fine (reading is not publishing)
+# --- §1.6 no-publish set (KAIST GoN — cohort reuse, 2026-08-26) ------
+# Same shapes as the pwn.college block above; "GoN" is in NO_PUBLISH_MARKERS.
+BLOCK|git add -f Wargames/GoN/Level_01.md
+BLOCK|git add --force Wargames/GoN/
+BLOCK|git add Wargames/GoN/web_cookie.md
+BLOCK|git stash push Wargames/GoN/x.md
+BLOCK|git update-index --add Wargames/GoN/Level_01.md
+BLOCK|git -C Wargames/GoN add -f Level_01.md
+BLOCK|git -C Wargames/GoN commit -m x
+BLOCK|git --work-tree=Wargames/GoN add Level_01.md
+BLOCK|GIT_WORK_TREE=Wargames/GoN git add Level_01.md
+BLOCK|git add $(echo Wargames/GoN/x.md)
+# git read-only subcommands are not publishing
+ALLOW|git check-ignore -v Wargames/GoN/Level_01.md
+ALLOW|git status Wargames/GoN
+# but slurping the content into a pipeline IS the first step of laundering it
+BLOCK|cat Wargames/GoN/Level_01.md
+BLOCK|strings Wargames/GoN/dump.bin
+BLOCK|cp Wargames/GoN/Level_01.md Concepts/Web/Cookies.md
+# lowercase "gon" must NOT false-positive (case-sensitive marker on purpose)
+ALLOW|git add Concepts/Binary/Polygon_Mesh.md
+ALLOW|git add Concepts/Crypto/Dragon_Cipher.md
+
 ALLOW|git check-ignore -v Wargames/Pwn_College/Level_01.md
 ALLOW|git status Wargames/Pwn_College
 ALLOW|git -C Wargames/Pwn_College status

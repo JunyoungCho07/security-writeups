@@ -48,8 +48,16 @@ PROTECTED_BASENAMES = {
     "guard_bash.py", "guard_write.py", "guard_index.sh",
 }
 
-# Content that must never reach the index or the remote (platform ToS).
-NO_PUBLISH_MARKERS = ("Pwn_College", "pwn_college", "pwn.college")
+# Content that must never reach the index or the remote (platform ToS, or —
+# for GoN — because the entrance problems are reused for the next cohort).
+#
+# `path_hits` is a case-SENSITIVE substring test, which is why "GoN" is safe to
+# list bare: lowercase "gon" (dragon, polygon, hexagon) cannot collide with it.
+# A lowercase spelling on macOS's case-insensitive APFS would slip past this
+# tuple, but not past the `.nopublish` marker scan in pre-commit/guard_index.sh
+# — those resolve the marker through the filesystem, which is case-insensitive
+# too. Proactive layer here, state-based backstop there.
+NO_PUBLISH_MARKERS = ("Pwn_College", "pwn_college", "pwn.college", "GoN")
 
 # Private key material. A security vault has no reason to read the operator's
 # own keys, and anything read here can end up quoted in a note.

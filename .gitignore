@@ -102,6 +102,16 @@ notes.local.md
 Wargames/Pwn_College/
 
 # -----------------------------------------------------------------
+# 🔴 KAIST GoN — entrance-selection problems are REUSED for the next
+# cohort (confirmed by JY, 2026-08-26). Publishing a writeup burns the
+# selection set for future applicants. Entire dir is LOCAL-ONLY:
+# never commit / push / `git add -f`.
+# (Only GENERAL concept theory — no challenge names, no flags, no
+#  payloads — may be atomized into the public Concepts/.)
+# -----------------------------------------------------------------
+Wargames/GoN/
+
+# -----------------------------------------------------------------
 # Log files (raw terminal dumps with potential passwords)
 # -----------------------------------------------------------------
 *.log

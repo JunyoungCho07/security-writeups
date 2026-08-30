@@ -22,7 +22,7 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
 # Directories whose contents must never be staged (platform ToS). Extend by
 # dropping an empty `.nopublish` file into any tree.
-NO_PUBLISH_DIRS=("Wargames/Pwn_College")
+NO_PUBLISH_DIRS=("Wargames/Pwn_College" "Wargames/GoN")
 
 is_no_publish() {
     local p="$1" nd dir

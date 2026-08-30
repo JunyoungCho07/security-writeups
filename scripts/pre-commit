@@ -36,7 +36,7 @@ REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 # ----------------------------------------------------------------
 # A directory is no-publish if it is listed below OR contains a .nopublish
 # marker file. The marker makes the rule extensible without editing this hook.
-NO_PUBLISH_DIRS=("Wargames/Pwn_College")
+NO_PUBLISH_DIRS=("Wargames/Pwn_College" "Wargames/GoN")
 
 while IFS= read -r -d '' path; do
     [ -z "$path" ] && continue
