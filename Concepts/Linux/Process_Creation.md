@@ -47,6 +47,7 @@ A program becomes a running **process** via two syscalls: **`fork`** (duplicate 
 
 ## Encountered / Applied In
 - [[Wargames/Bandit/Level_32]] — `input → uppershell(C, toupper→system) → sh → syscall → kernel`; `$0`이 sh로 확장돼 자식 셸 재기동. [[Setuid]](권한 전파) · [[Restricted_Shell_Escape]].
+- 관련: [[Concepts/Linux/File_IO_And_Cursor]] — `os.fork`/`os.execve`가 곧 시스템콜 래퍼라는 점, fd 상속
 
 ## Expand Later (`/deep` candidates)
 - **`/deep Fork_Exec_Model`** — CoW fork, fd 상속/close-on-exec, `posix_spawn`, zombie/orphan, `wait` 상태코드.

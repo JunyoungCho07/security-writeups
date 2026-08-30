@@ -184,6 +184,8 @@ Pattern: **(noisy stream) → (predicate filter) → (maximal-run segmentation) 
 ### Related Concepts
 - [[Concepts/Linux/Base64_Encoding]] (Confer — 위장 vs 발견의 dual)
 - [[Concepts/Linux/Regex_Flavors]] (Related — strings 출력에 grep/PCRE 필터 적용)
+- [[Concepts/Binary/Binary_Format_Forensics]] (Related — strings 는 축 1·4의 저비용 정찰 수단)
+- [[Concepts/Linux/File_Signatures]] (Related — 둘 다 바이너리 정찰의 저비용 1단계)
 
 ### Cross-Domain
 - External: JY_KAIST/02_Concepts/Math/Information_Theory (signal vs noise, entropy)

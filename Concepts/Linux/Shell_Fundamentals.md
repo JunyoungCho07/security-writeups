@@ -31,7 +31,7 @@ shell은 "공백으로 단어를 자르고, `$`를 치환하고, 스트림(fd)�
 - **`"` vs `'`** — 큰따옴표: `$`·`$()` 확장 O(단어분리/glob만 억제). 작은따옴표: 아무 확장 X(리터럴, `$`도 글자). printf format을 `'...'`로 감싸 shell이 `\n`/`%s`를 안 건드리게 하는 이유.
 
 ### B. I/O · 리다이렉션
-- **fd 3종** — 0=stdin, 1=stdout, 2=stderr.
+- **fd 3종** — 0=stdin, 1=stdout, 2=stderr.  커널 쪽 실체(open/커서/`O_TRUNC`)는 [[Concepts/Linux/File_IO_And_Cursor]].
 - **`>` vs `>>`** — `>`=truncate(없으면 생성, 있으면 비운 뒤 쓰기), `>>`=append(끝에 덧붙임).
 - **`2>&1`** — "fd 2(stderr)를 fd 1(stdout)이 **현재 가리키는 곳**으로." `&1`의 `&`=파일명 아닌 fd 번호 표시. 순서 중요: `>file 2>&1`(둘 다 파일) vs `2>&1 >file`(stderr는 터미널).
 

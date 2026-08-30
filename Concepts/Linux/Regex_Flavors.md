@@ -163,6 +163,7 @@ Pattern String → [Regex Engine] → NFA/DFA → String Matching
 
 ### Tools That Implement This
 - [[Tools/grep]]
+- [[Tools/grep]] (`-E` ERE / `-P` PCRE / 기본 BRE 의 실제 분기점)
 
 ### Related Concepts
 - [[Concepts/Linux/Grep_Pattern_Matching]] (Tool_For)

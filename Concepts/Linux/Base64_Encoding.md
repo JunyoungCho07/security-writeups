@@ -181,6 +181,7 @@ Pattern: **(byte stream) → (radix-N 재해석) → (alphabet Σ_N 매핑) → 
 ### Related Concepts
 - [[Concepts/Linux/Strings_Extraction]] (Confer — 위장 생성 vs 발견의 dual)
 - [[Concepts/Crypto/ROT13_Cipher]] (Related — 같은 "위장 ≠ 보안" 계열, key-less reversible)
+- [[Concepts/Crypto/Checksum_Hash_MAC]] (Related — 인코딩 ≠ 무결성 ≠ 암호화, 세 층위의 구분)
 
 ### Cross-Domain
 - External: JY_KAIST/02_Concepts/Math/Information_Theory (entropy 보존, radix economy)
