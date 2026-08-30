@@ -52,6 +52,37 @@ last_reviewed: 2026-06-02
 
 offset이 포맷마다 다른 이유: 헤더 레이아웃에 종속. tar는 512B 블록 구조라 식별자가 메타데이터 뒤(257)에 온다.
 
+### 시그니처 바이트는 임의로 고른 게 아니다 — 채널 손상 검출기
+
+매직 넘버는 "정체 표시"만 하는 게 아니다. **자기가 통과할 채널이 무엇을 망가뜨리는지 알고, 그 손상이 시그니처에서 드러나도록** 바이트를 고른다. PNG의 8바이트가 교과서적 사례다:
+
+```
+89 50 4e 47 0d 0a 1a 0a
+```
+
+| 바이트 | 정체 | 무엇을 잡나 |
+|---|---|---|
+| `89` | 최상위 비트가 켜진 값 | **7비트 채널**을 통과하면 `09`로 뭉개진다 → 8비트 비안전 경로 검출 |
+| `50 4e 47` | ASCII `P` `N` `G` | 사람이 헥스 덤프에서 눈으로 식별 |
+| `0d 0a` | **CRLF** | FTP 텍스트 모드 등이 개행을 변환하면 `0a`로 접힌다 → **개행 변환 검출** |
+| `1a` | DOS EOF (Ctrl-Z) | 옛 DOS `type`이 여기서 멈춰 터미널에 바이너리가 쏟아지는 것을 방지 |
+| `0a` | LF | LF → CRLF 로 **늘어나는** 반대 방향 변환 검출 |
+
+`0d 0a`와 `0a`가 **두 방향의 개행 변환을 모두** 막는다. 텍스트 모드로 바이너리를 옮기면 시그니처가 깨지고, 디코더가 **첫 8바이트에서 즉시** 손상을 선언할 수 있다 (같은 손상의 프로그래밍 쪽 얼굴은 [[Concepts/Linux/File_IO_And_Cursor]] §D).
+
+다른 포맷의 같은 설계:
+
+| 포맷 | 시그니처 | 설계 의도 |
+|---|---|---|
+| ELF | `7f 45 4c 46` (`.ELF`) | `0x7f`(DEL, 출력 불가)로 **텍스트 파일과 즉시 구별** |
+| Java class | `ca fe ba be` | 고바이트 → 7비트 채널 검출 (기억하기 쉬운 값은 덤) |
+| PDF | `25 50 44 46` (`%PDF`) | `%`가 PostScript/PDF의 **주석 문자** — 텍스트 도구를 통과해도 안전 |
+| GIF | `GIF87a` / `GIF89a` | **버전을 시그니처에 내장** — 파서가 첫 6바이트로 방언까지 판별 |
+| ZIP | `50 4b 03 04` (`PK..`) | `PK` = Phil Katz + 레코드 타입 바이트(`03 04`=로컬 헤더) |
+
+> [!tip] 일반 원리
+> 시그니처는 **정체 선언 + 채널 무결성 카나리아**의 이중 역할을 한다. 포맷 설계를 읽을 때 "왜 하필 이 바이트인가"를 물으면 그 포맷이 어떤 전송 환경을 상정했는지가 드러난다.
+
 ## [Step 5] When & Condition
 
 - 확장자가 없거나·거짓이거나·신뢰 불가할 때 (다운로드, 압축 중첩, CTF artifact).
@@ -128,6 +159,9 @@ Polyglot 파일 — 여러 포맷의 시그니처 제약을 동시 만족시켜 
 ### Related Concepts
 - [[Concepts/Linux/Hexdump_Reversal]] (Related — Level 12에서 짝으로 사용)
 - [[Concepts/Linux/Strings_Extraction]] (Related — 둘 다 binary 내용 분석)
+- [[Concepts/Binary/Chunked_Container_Formats]] (Leads_To — 시그니처 뒤에 오는 레코드 구조)
+- [[Concepts/Binary/Binary_Format_Forensics]] (Leads_To — 시그니처는 5개 검증 축 중 1번)
+- [[Concepts/Linux/File_IO_And_Cursor]] (Related — 시그니처가 잡으려는 개행 변환의 실체)
 
 ### Cross-Domain
 - Web: MIME sniffing / `Content-Type` 검증 (same idea — content vs declared type)
