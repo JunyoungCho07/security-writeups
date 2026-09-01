@@ -45,6 +45,7 @@ setuid = "이 프로그램은 **주인 권한**으로 돈다"는 표식. 주인�
 - [[Wargames/Bandit/Level_19]] — `bandit20-do` do-wrapper(첫 등장).
 - [[Wargames/Bandit/Level_26]] — `bandit27-do` env-wrapper; [[Static_Binary_Triage]]로 구현 추론.
 - [[Wargames/Bandit/Level_32]] — `uppershell` setuid + real-uid 고정 → bash까지 권한 전파. [[Restricted_Shell_Escape]] · [[Process_Creation]].
+- 관련 도구: [[Tools/colima]] — `--security-opt no-new-privileges` 가 차단하는 것이 정확히 이 상승 경로다
 
 ## Expand Later (`/deep` candidates)
 - **`/deep Process_Credentials`** — ruid/euid/suid/fsuid, `setuid`/`setreuid`/`setresuid` 규칙, `credentials(7)`, capabilities, `no_new_privs`.
