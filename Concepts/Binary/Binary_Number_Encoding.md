@@ -71,6 +71,7 @@ no self-description; the specification supplies all three.
 - [[Concepts/Binary/Chunked_Container_Formats]] — 이 규칙들이 적용되는 대상
 - [[Tools/xxd]] — 바이트를 눈으로 보는 도구
 - [[Concepts/Linux/File_IO_And_Cursor]] — 이 바이트를 파일에서 안전하게 꺼내오는 단계
+- [[Concepts/Binary/Floating_Point_Precision]] — 정수는 간격 1로 정확, float은 큰 값에서 격자로 벌어짐 (대조)
 
 ## Expand Later (`/deep` candidates)
 - 정렬(alignment)과 구조체 패딩 — `@` 포맷이 왜 파일 파싱에 위험한가

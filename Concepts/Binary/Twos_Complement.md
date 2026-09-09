@@ -85,6 +85,7 @@ f(a) + f(b) ≡ f(a+b)   (mod 2^N)
 ## Related
 - [[Concepts/Binary/Binary_Number_Encoding]] — signed/unsigned 선택이 실제 파싱에 미치는 영향
 - [[Concepts/Binary/Chunked_Container_Formats]] — 길이 필드가 `unsigned`인 이유(길이는 음수일 수 없다)
+- [[Concepts/Binary/Floating_Point_Precision]] — 정수형은 격자 없이 정확, float은 유효숫자 유한 (표현 방식 대조)
 
 ## Expand Later (`/deep` candidates)
 - 부호 있는 오버플로가 C/C++에서 **정의되지 않은 동작(UB)**인 이유와, 2의 보수 의무화 이후에도 UB로 남은 이유

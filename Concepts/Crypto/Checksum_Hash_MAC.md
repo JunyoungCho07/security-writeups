@@ -99,6 +99,7 @@ CRC는 공개된 결정적 함수다. 데이터를 고친 사람이 체크섬도
 - [[Concepts/Binary/Chunked_Container_Formats]] — 체크섬이 붙는 자리
 - [[Concepts/Binary/Binary_Format_Forensics]] — 축 3의 운용법, "판정자를 매수하지 마라"
 - [[Concepts/Linux/Base64_Encoding]] — 인코딩 ≠ 무결성 ≠ 암호화의 구분
+- [[Concepts/Binary/Floating_Point_Precision]] — MAC이 "바이트"를 인증한다는 성질이 type-differential 우회의 전제
 
 ## Expand Later (`/deep` candidates)
 - CRC를 §부록 레퍼런스 구현대로 직접 구현해 라이브러리와 대조 (진짜 독립 검증)
