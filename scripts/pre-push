@@ -1,0 +1,375 @@
+#!/usr/bin/env bash
+# =================================================================
+# security-writeups pre-push hook — the publication boundary.
+#
+# scripts/pre-commit gates what enters the INDEX. This gates what LEAVES
+# THE MACHINE. It is a STATE check: whatever route produced the commits
+# (a bypassed pre-commit, merge / cherry-pick / rebase / am, plumbing,
+# another tool, a foreign clone), the objects about to be transmitted are
+# inspected as they are.
+#
+# For every ref update git hands us on stdin, the push is refused when
+# any commit NEW TO THE REMOTE:
+#   1. does not carry a GOOD signature (%G? != G), or is signed by a key
+#      other than the operator's (REQUIRED_KEY — CLAUDE.md §1.3)
+#   2. has, anywhere in its TREE, a no-publish path: under NO_PUBLISH_DIRS
+#      (case folded — the remote is case-sensitive), under a working-tree
+#      dir holding a .nopublish marker, or excluded by .gitignore (a tracked
+#      ignored path can only have been forced in). Added-then-deleted still
+#      ships in history, so every commit's tree is checked, not the tip.
+#   3. adds a file whose name advertises a secret
+#   4. introduces a blob — or carries a commit MESSAGE — that the shared
+#      scanner (scripts/claude/secret_scan.py) flags: credential, private
+#      key, cloud/API key, personal identifier
+#
+# Installed by scripts/claude/session-guard.sh from scripts/pre-push; edit
+# the source, never .git/hooks/. There is deliberately NO skip switch, env
+# override or allow-list in this file (CLAUDE.md §1.2: a human runs any
+# bypass, never the agent; `git push --no-verify` is his call and is the
+# accepted residual). The key id is a constant for the same reason.
+#
+# Read-only audit mode — the same checks over any range, exit by verdict;
+# it cannot make a push succeed:
+#   bash scripts/pre-push --check origin/main..HEAD   (what a push would send)
+#   bash scripts/pre-push --check HEAD                (full history — reports the
+#       already-public unsigned db1f05f and the pre-v4.1 test fixture in
+#       20c1577; both predate this gate and a real push never re-sends them)
+#
+# Design notes:
+#   - range per ref: delete → nothing leaves; new ref → lsha --not
+#     --remotes=<remote>; update → rsha..lsha (fast-forward or force, force
+#     is announced); remote tip unknown locally → lsha --not --remotes=
+#     <remote>; range undeterminable → refuse (fail closed).
+#   - signature fields are split on 0x1F, not TAB: TAB is IFS whitespace,
+#     so the empty %GK/%GF/%GP of an unsigned commit would collapse and
+#     shift the subject. %G?=E (gpg or the key missing) is a violation: a
+#     machine that cannot verify cannot sign either.
+#   - the content scan is the shared scanner in ONE process over every blob
+#     new to the range (`rev-list --objects`); rc 1 = hits, any other
+#     non-zero (or python3 / the scanner missing) = violation. A gate that
+#     silently degrades is not a gate. Commit messages go through the same
+#     scanner, one --text call per commit.
+#   - NUL-safe from git to the report (paths may hold anything); BSD awk
+#     cannot emit NUL, so records are built in bash. LC_ALL=C so pattern
+#     classes are byte-stable; nocasematch folds the prefix and name rules.
+#
+# Portability: bash 3.2 (macOS), BSD grep/sed/sort/tr, git >= 2.x.
+# =================================================================
+
+set -uo pipefail
+export LC_ALL=C
+shopt -s nocasematch
+
+RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; NC='\033[0m'
+VIOLATIONS=0
+WARNINGS=0
+
+# ----------------------------------------------------------------
+# Policy
+# ----------------------------------------------------------------
+# CLAUDE.md §1.3. Matched as a case-insensitive SUFFIX of %GK / %GF / %GP,
+# so a subkey id or a full-fingerprint spelling of the same key passes.
+REQUIRED_KEY="E81313B5B651B0D9"
+
+# Keep in sync with scripts/pre-commit, scripts/claude/guard_index.sh and
+# scripts/claude/session-guard.sh (run_tests.sh §5 pins the four identical).
+NO_PUBLISH_DIRS=("Wargames/Pwn_College" "Wargames/GoN")
+
+RE_NAME='(password|secret|credential|\.env$|_rsa$|\.pem$)'
+RE_CODE='\.(py|sh|ps1)$'   # a program named after secrets handles them (secret_scan.py)
+
+MAX_LIST=5   # paths shown per finding
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+cd "$REPO_ROOT" || exit 1
+SCANNER="$REPO_ROOT/scripts/claude/secret_scan.py"
+# All-zero object id in this repo's hash width (sha1: 40, sha256: 64).
+ZERO=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+
+TMPD=$(mktemp -d "${TMPDIR:-/tmp}/prepush.XXXXXX") || { echo "❌ mktemp failed"; exit 1; }
+trap 'rm -rf "$TMPD"' EXIT
+
+# ----------------------------------------------------------------
+# Helpers
+# ----------------------------------------------------------------
+lc()        { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+violation() { echo -e "${RED}❌ $1${NC}"; VIOLATIONS=$((VIOLATIONS + 1)); }
+warning()   { echo -e "${YELLOW}⚠️  $1${NC}"; WARNINGS=$((WARNINGS + 1)); }
+
+sig_meaning() {
+    case "$1" in
+        G) echo "good signature" ;;
+        B) echo "BAD signature" ;;
+        U) echo "good signature, key of unknown validity" ;;
+        X) echo "good signature, EXPIRED" ;;
+        Y) echo "good signature, key EXPIRED" ;;
+        R) echo "good signature, key REVOKED" ;;
+        E) echo "cannot verify — key missing from keyring, or gpg failed" ;;
+        N) echo "NO signature" ;;
+        *) echo "unknown status '$1'" ;;
+    esac
+}
+
+is_no_publish() {  # path -> 0 if under a listed dir (case folded) or a dir holding a .nopublish marker
+    local p="$1" nd dir
+    for nd in "${NO_PUBLISH_DIRS[@]}"; do
+        case "$p" in "$nd"/*|"$nd") return 0 ;; esac
+    done
+    dir="$p"
+    while [ "${dir%/*}" != "$dir" ]; do
+        dir=${dir%/*}
+        [ -e "$REPO_ROOT/$dir/.nopublish" ] && return 0
+    done
+    return 1
+}
+
+scanner_ok() { command -v python3 >/dev/null 2>&1 && [ -f "$SCANNER" ]; }
+
+list_nul() {  # file-of-NUL-records -> indented lines, capped at MAX_LIST
+    local n
+    n=$(tr -cd '\0' < "$1" | wc -c | tr -d ' ')
+    tr '\0' '\n' < "$1" | head -n "$MAX_LIST" | sed 's/^/     /'
+    [ "$n" -gt "$MAX_LIST" ] && echo "     … and $((n - MAX_LIST)) more"
+    return 0
+}
+
+# ----------------------------------------------------------------
+# Which commits does this ref update transmit?  Sets RANGE (rev-list args).
+# ----------------------------------------------------------------
+range_for() {  # remote url lsha rsha
+    local remote="$1" url="$2" lsha="$3" rsha="$4"
+    if [ "$rsha" = "$ZERO" ]; then
+        # New ref: everything reachable from lsha that no tracking ref of THIS
+        # remote already has. Pushing to a bare URL (no remote name) → not on
+        # any known remote at all.
+        if [ "$remote" = "$url" ]; then RANGE=("$lsha" --not --remotes)
+        else RANGE=("$lsha" --not --remotes="$remote"); fi
+    elif git cat-file -e "$rsha^{commit}" </dev/null 2>/dev/null; then
+        # Update (fast-forward or force): what lsha has that the remote tip lacks.
+        RANGE=("$rsha..$lsha")
+    else
+        # The remote tip is not in our object store (pushed from elsewhere,
+        # never fetched). Fall back to the widest defensible range.
+        RANGE=("$lsha" --not --remotes="$remote")
+    fi
+}
+
+# ----------------------------------------------------------------
+# 1. Signatures — every commit must verify G with the operator's key
+# ----------------------------------------------------------------
+check_signatures() {
+    local h st gk gf gp subj k ok req
+    req=$(lc "${REQUIRED_KEY#0x}")
+    while IFS=$'\x1f' read -r h st gk gf gp subj; do
+        [ -z "$h" ] && continue
+        # the subject is shown for orientation only: any 10+ alnum run in it
+        # is previewed as 3 chars + … (a subject can carry a secret too)
+        subj=$(printf '%s' "$subj" | sed -E 's/([A-Za-z0-9]{3})[A-Za-z0-9]{7,}/\1…/g')
+        if [ "$st" != "G" ]; then
+            violation "UNSIGNED / UNVERIFIED COMMIT $h — $(sig_meaning "$st") — $subj"
+            continue
+        fi
+        ok=0
+        for k in $gk $gf $gp; do
+            case "$(lc "$k")" in *"$req") ok=1 ;; esac
+        done
+        if [ "$ok" -eq 0 ]; then
+            violation "WRONG SIGNING KEY on $h — signed by ${gk:-?}, expected …${REQUIRED_KEY#0x} — $subj"
+        fi
+    done < <(printf '%s\n' "$COMMITS" \
+        | git log --stdin --no-walk=unsorted \
+              --format='%h%x1f%G?%x1f%GK%x1f%GF%x1f%GP%x1f%s' 2>/dev/null)
+}
+
+# ----------------------------------------------------------------
+# 2. No-publish / ignored material anywhere in the TREE of any commit
+# ----------------------------------------------------------------
+check_no_publish() {
+    local c p rc
+    : > "$TMPD/paths"
+    for c in $COMMITS; do
+        git ls-tree -r --name-only -z "$c" </dev/null >> "$TMPD/paths" 2>/dev/null \
+            || { violation "cannot read the tree of commit ${c:0:7} — refusing to guess"; return; }
+    done
+    sort -zu "$TMPD/paths" > "$TMPD/upaths"
+    : > "$TMPD/np"; : > "$TMPD/spec"
+    while IFS= read -r -d '' p; do
+        [ -z "$p" ] && continue
+        is_no_publish "$p" && printf '%s\0' "$p" >> "$TMPD/np"
+        printf './%s\0' "$p" >> "$TMPD/spec"   # ./ so a leading ':' is not read as pathspec magic
+    done < "$TMPD/upaths"
+    if [ -s "$TMPD/np" ]; then
+        violation "NO-PUBLISH PATH in pushed history — $(tr -cd '\0' < "$TMPD/np" | wc -c | tr -d ' ') path(s), local-only tree (platform ToS / .nopublish marker):"
+        list_nul "$TMPD/np"
+    fi
+    # Every path .gitignore excludes: it is tracked only by force, whatever its
+    # spelling or which list it belongs to. ONE check-ignore over the unique set.
+    : > "$TMPD/ign"
+    if [ -s "$TMPD/spec" ]; then
+        git check-ignore --no-index --stdin -z < "$TMPD/spec" > "$TMPD/ignraw" 2>/dev/null; rc=$?
+        if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+            violation "cannot evaluate .gitignore for the pushed trees (git check-ignore exit $rc) — refusing to guess"
+            return
+        fi
+        while IFS= read -r -d '' p; do
+            p=${p#./}
+            [ -z "$p" ] && continue
+            is_no_publish "$p" && continue        # already reported above
+            printf '%s\0' "$p" >> "$TMPD/ign"
+        done < "$TMPD/ignraw"
+    fi
+    if [ -s "$TMPD/ign" ]; then
+        violation "IGNORED PATH in pushed history — $(tr -cd '\0' < "$TMPD/ign" | wc -c | tr -d ' ') path(s) that .gitignore excludes (committed by force):"
+        list_nul "$TMPD/ign"
+    fi
+}
+
+# ----------------------------------------------------------------
+# 3. Filenames that advertise secrets (added / copied / modified / renamed / type-changed)
+# ----------------------------------------------------------------
+check_filenames() {
+    local p
+    printf '%s\n' "$COMMITS" \
+        | git diff-tree --stdin --no-commit-id --name-only -r --root -m -z --diff-filter=ACMRT 2>/dev/null \
+        | sort -zu > "$TMPD/names"
+    while IFS= read -r -d '' p; do
+        [ -z "$p" ] && continue
+        if [[ "$p" =~ $RE_NAME ]] && ! [[ "$p" =~ $RE_CODE ]]; then
+            violation "FORBIDDEN FILENAME in pushed history: $p"
+        fi
+    done < "$TMPD/names"
+}
+
+# ----------------------------------------------------------------
+# 4. Content: every blob new to the range through the shared scanner
+#    (history, not tip: a secret added in commit 3 and masked in commit 5
+#     still leaves the machine)
+# ----------------------------------------------------------------
+check_content() {
+    local line sha rest type path out rc n
+    if ! git rev-list --objects "${RANGE[@]}" </dev/null > "$TMPD/objs" 2>/dev/null; then
+        violation "cannot enumerate the objects that would be pushed — refusing to guess"; return
+    fi
+    if ! git cat-file --batch-check='%(objectname) %(objecttype) %(rest)' < "$TMPD/objs" > "$TMPD/typed" 2>/dev/null; then
+        violation "cannot type the objects that would be pushed — refusing to guess"; return
+    fi
+    : > "$TMPD/records"
+    while IFS= read -r line; do
+        sha=${line%% *}; rest=${line#* }
+        type=${rest%% *}; path=${rest#* }
+        [ "$type" = "blob" ] || continue
+        [ "$path" = "$rest" ] || [ -z "$path" ] && path="$sha"   # no path recorded (should not happen)
+        printf '%s %s\0' "$sha" "$path" >> "$TMPD/records"
+    done < "$TMPD/typed"
+    [ -s "$TMPD/records" ] || return
+    out=$(python3 "$SCANNER" --git-blobs < "$TMPD/records" 2>&1); rc=$?
+    if [ "$rc" -eq 1 ]; then
+        n=$(printf '%s\n' "$out" | sed -E 's/: line [0-9]+ \[[^]]*\]: .*$//' | sort -u | grep -c .)
+        echo -e "${RED}❌ SUSPECT CREDENTIAL / KEY / IDENTIFIER in pushed history — $n blob(s):${NC}"
+        printf '%s\n' "$out" | head -n 20 | sed 's/^/     /'
+        VIOLATIONS=$((VIOLATIONS + ${n:-1}))
+    elif [ "$rc" -ne 0 ]; then
+        violation "secret scanner failed (exit $rc) — push refused (fail closed)"
+        printf '%s\n' "$out" | sed 's/^/     /'
+    fi
+}
+
+check_messages() {
+    local c out rc
+    for c in $COMMITS; do
+        out=$(git log -1 --format=%B "$c" </dev/null 2>/dev/null \
+              | python3 "$SCANNER" --text --label "commit ${c:0:7} message" 2>&1); rc=$?
+        if [ "$rc" -eq 1 ]; then
+            violation "SUSPECT CREDENTIAL / KEY / IDENTIFIER in a commit MESSAGE:"
+            printf '%s\n' "$out" | head -n 5 | sed 's/^/     /'
+        elif [ "$rc" -ne 0 ]; then
+            violation "secret scanner failed on the message of ${c:0:7} (exit $rc) — push refused (fail closed)"
+            printf '%s\n' "$out" | sed 's/^/     /'
+        fi
+    done
+}
+
+run_checks() {
+    local n
+    n=$(printf '%s\n' "$COMMITS" | grep -c .)
+    echo "   $n commit(s) new to the remote — inspecting"
+    check_signatures
+    check_no_publish
+    check_filenames
+    if scanner_ok; then
+        check_content
+        check_messages
+    else
+        violation "secret scanner unavailable — push refused (fail closed): needs python3 on PATH and $SCANNER"
+    fi
+}
+
+# ----------------------------------------------------------------
+# Main
+# ----------------------------------------------------------------
+echo "🔍 Pre-push publication gate..."
+
+COMMITS=""
+RANGE=()
+if [ "${1:-}" = "--check" ]; then
+    shift
+    if [ $# -eq 0 ]; then echo "usage: pre-push --check <rev-list args>"; exit 2; fi
+    echo "→ audit mode: $*"
+    RANGE=("$@")
+    if COMMITS=$(git rev-list "${RANGE[@]}" </dev/null 2>/dev/null); then
+        if [ -z "$COMMITS" ]; then echo "   empty range"; else run_checks; fi
+    else
+        violation "cannot resolve '$*'"
+    fi
+else
+    REMOTE="${1:-}"; URL="${2:-}"
+    INPUT=$(cat)
+    while read -r lref lsha rref rsha; do
+        [ -z "${lref:-}" ] && continue
+        if [ "$lsha" = "$ZERO" ]; then
+            echo "→ delete $rref — nothing leaves the machine, allowed"
+            continue
+        fi
+        echo "→ $lref → $REMOTE $rref"
+        if [ "$rsha" != "$ZERO" ] && git cat-file -e "$rsha^{commit}" </dev/null 2>/dev/null \
+           && ! git merge-base --is-ancestor "$rsha" "$lsha" </dev/null 2>/dev/null; then
+            echo -e "${YELLOW}   FORCE PUSH: $rref would be rewritten (remote tip ${rsha:0:7} is not an ancestor of ${lsha:0:7})${NC}"
+        fi
+        range_for "$REMOTE" "$URL" "$lsha" "$rsha"
+        if ! COMMITS=$(git rev-list "${RANGE[@]}" </dev/null 2>/dev/null); then
+            violation "cannot determine which commits $lref would publish — refusing to guess"
+            continue
+        fi
+        if [ -z "$COMMITS" ]; then
+            echo "   nothing new for the remote — allowed"
+            continue
+        fi
+        run_checks
+    done <<< "$INPUT"
+fi
+
+# ----------------------------------------------------------------
+# Report
+# ----------------------------------------------------------------
+echo ""
+if [ "$VIOLATIONS" -gt 0 ]; then
+    echo -e "${RED}========================================${NC}"
+    echo -e "${RED}❌ PUSH BLOCKED: $VIOLATIONS violation(s) — nothing was sent${NC}"
+    echo -e "${RED}========================================${NC}"
+    echo ""
+    echo "The remote is public. Fix the history, then push again:"
+    echo "  1. Unsigned commit → re-sign it (git commit --amend -S for the tip;"
+    echo "     git rebase --exec 'git commit --amend --no-edit -S' <base> for a range)"
+    echo "  2. No-publish / ignored path → remove it from EVERY commit in the range;"
+    echo "     it must never have been committed (interactive rebase / git filter-repo)"
+    echo "  3. Credential in a blob or a message → rewrite the commit with the value"
+    echo "     masked, then rotate it"
+    echo "  4. Confirmed false positive?  YOU run the bypass, not the agent."
+    exit 1
+fi
+
+if [ "$WARNINGS" -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  $WARNINGS warning(s) — review before the next push${NC}"
+fi
+echo -e "${GREEN}✅ Publication gate passed${NC}"
+exit 0

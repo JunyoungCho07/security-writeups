@@ -61,13 +61,15 @@ else
     ok "Remote 'origin': $(git config --get remote.origin.url)"
 fi
 
-# --- 5. Install pre-commit hook --------------------------------------
-if [ -f "scripts/pre-commit" ]; then
-    cp scripts/pre-commit .git/hooks/pre-commit
-    chmod +x .git/hooks/pre-commit
-    ok "Pre-commit hook installed to .git/hooks/pre-commit"
+# --- 5. Install git hooks (pre-commit, pre-merge-commit, pre-push) ----
+# One installer: session-guard.sh verifies what it installs (regular file,
+# executable, byte-equal to source) and is what every Claude Code session
+# re-runs, so setup and self-heal can never disagree.
+if [ -f "scripts/claude/session-guard.sh" ]; then
+    CLAUDE_PROJECT_DIR="$(pwd)" bash scripts/claude/session-guard.sh
+    ok "Git hooks installed/verified (see the guard line above)"
 else
-    warn "scripts/pre-commit not found — secret scan will NOT run automatically"
+    warn "scripts/claude/session-guard.sh not found — git hooks NOT installed"
 fi
 
 # --- 6. Make Claude Code hook scripts executable ----------------------
