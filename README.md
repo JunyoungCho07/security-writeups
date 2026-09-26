@@ -23,8 +23,8 @@ This repository follows three principles:
 security-writeups/
 ├── Wargames/
 │   ├── Bandit/         ← OverTheWire Bandit (Linux basics)
-│   ├── Natas/          ← OverTheWire Natas (web exploitation)
-│   └── Leviathan/      ← (planned)
+│   ├── Natas/          ← OverTheWire Natas (web exploitation) (planned)
+│   └── Leviathan/      ← OverTheWire Leviathan (setuid binaries, in progress)
 ├── CTF/                ← Capture-the-flag event writeups (planned)
 ├── HTB/                ← HackTheBox machines (planned)
 ├── BugBounty/          ← Responsible disclosure writeups (planned)
@@ -33,7 +33,8 @@ security-writeups/
 │   ├── Linux/          ← Filesystem, processes, glob, permissions
 │   ├── Crypto/         ← Encryption, hashing, key exchange
 │   ├── Network/        ← TCP/IP, DNS, services
-│   └── Web/            ← HTTP, sessions, injection vectors
+│   ├── Web/            ← HTTP, sessions, injection vectors
+│   └── Binary/         ← Number encoding, file formats, forensics
 │
 ├── Tools/              ← Single-page command references
 ├── _MOC/               ← Maps of Content (mermaid graphs)
@@ -43,7 +44,7 @@ security-writeups/
 ## Navigation
 
 - **Start here**: [Bandit MOC](_MOC/MOC_Bandit.md) — wargame level dependency graph
-- **Tool index**: [Linux Commands MOC](_MOC/MOC_Linux_Commands.md)
+- **Tool index**: [Linux Commands MOC](_MOC/MOC_Linux_Commands.md) *(planned)*
 - **Concept index**: [All Concepts MOC](_MOC/MOC_Concepts.md) *(planned)*
 
 ## How writeups are structured
@@ -82,6 +83,6 @@ Educational content. Citations welcome with link back. Code snippets and scripts
 
 ---
 
-*This vault is managed with Obsidian + Cowork agent. Build system documented in `CLAUDE.md` (project-internal).*
+*This vault is managed with Obsidian + Claude Code. Build system documented in `CLAUDE.md` and `_System/Harness.md` (project-internal).*
 
 <!-- ssh fix verification -->
