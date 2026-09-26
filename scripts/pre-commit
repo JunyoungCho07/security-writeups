@@ -3,25 +3,43 @@
 # security-writeups pre-commit hook — the last gate before GitHub.
 #
 # Blocks:
-#   1. credential-looking strings in ANY staged text file
-#   2. private keys / cloud API keys
-#   3. filenames that advertise secrets
-#   4. no-publish material (pwn.college and any dir marked .nopublish)
+#   1. credential-looking strings, private keys, cloud/API keys and
+#      personal identifiers in ANY staged blob (scripts/claude/secret_scan.py)
+#   2. filenames that advertise secrets
+#   3. no-publish material: pwn.college / GoN trees, any dir marked
+#      .nopublish, and ANY path .gitignore excludes (it can only be in the
+#      index by force)
 #
 # Installed automatically by scripts/claude/session-guard.sh; the source
 # of truth is scripts/pre-commit. Edit here, not in .git/hooks/.
 #
-# Design notes (learned from the audit that replaced the first version):
-#   - EVERY text file is scanned, not just .md/.txt/.sh/.ps1. A password
-#     pasted into a .py solver or an extensionless dump leaks just as hard.
-#   - NUL-delimited filenames: a name with a space used to split into two
-#     nonexistent paths and silently skip the scan.
-#   - The whitelist is applied to the MATCHED TOKEN, not the whole line.
-#     Line-level whitelisting meant one innocent word ("commit", "hash")
-#     anywhere on the line disarmed the check for a real secret beside it.
+# Design notes (each learned from an audit that broke the previous version):
+#   - ONE walk over `git diff --cached --raw -z`: the blob SHA comes with
+#     the path, so nothing is re-resolved through `git show ":path"` (a
+#     file named `0:x.md` used to parse as a stage number and skip the scan).
+#     -z means no C-quoting: `한글/.env` used to hide from the name check.
+#     --diff-filter=ACMRT includes type changes (symlink → file).
+#   - "binary" is judged by the scanner on CONTENT, never by numstat or
+#     .gitattributes: a `*.md -diff` attribute line or a single NUL byte
+#     used to switch the credential scan off for the whole file.
+#   - the whitelist is judged on the TOKEN by the scanner, never on the
+#     line: `password: X (for example)` and `X md5` used to pass.
+#   - no-publish prefixes are compared case-insensitively (nocasematch):
+#     `wargames/pwn_college/` staged via plumbing used to pass, and the
+#     remote is case-sensitive so it would have been a distinct public path.
+#   - `git check-ignore --no-index` on every staged path: an ignored path
+#     in the index was force-staged, whatever its spelling or which list it
+#     belongs to. The no-publish rule no longer depends on this hook's
+#     hardcoded list agreeing with .gitignore.
+#   - the content scanner is a separate process; if python3 or the scanner
+#     is missing or it crashes, the commit is BLOCKED (fail closed). A gate
+#     that silently degrades is not a gate.
+#   - LC_ALL=C so bash pattern classes and git output are byte-stable.
 # =================================================================
 
 set -uo pipefail
+export LC_ALL=C
+shopt -s nocasematch
 
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; NC='\033[0m'
 VIOLATIONS=0
@@ -30,121 +48,101 @@ WARNINGS=0
 echo "🔍 Pre-commit security scan..."
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+SCANNER="$REPO_ROOT/scripts/claude/secret_scan.py"
 
 # ----------------------------------------------------------------
 # 0. No-publish set: material that must never reach a public remote
 # ----------------------------------------------------------------
-# A directory is no-publish if it is listed below OR contains a .nopublish
-# marker file. The marker makes the rule extensible without editing this hook.
+# A path is no-publish if it is under a dir listed below (case folded),
+# under any dir holding a .nopublish marker (any file type), or excluded
+# by .gitignore. The marker and .gitignore make the rule extensible
+# without editing this hook.
 NO_PUBLISH_DIRS=("Wargames/Pwn_College" "Wargames/GoN")
 
-while IFS= read -r -d '' path; do
-    [ -z "$path" ] && continue
+is_no_publish() {  # path -> 0 if the path must never be staged
+    local p="$1" nd dir
     for nd in "${NO_PUBLISH_DIRS[@]}"; do
-        case "$path" in
-            "$nd"/*|"$nd")
-                echo -e "${RED}❌ NO-PUBLISH PATH STAGED: $path${NC}"
-                echo "   $nd is local-only: the platform's terms prohibit"
-                echo "   public writeups. Unstage it: git rm --cached '$path'"
-                VIOLATIONS=$((VIOLATIONS + 1))
-                ;;
-        esac
+        case "$p" in "$nd"/*|"$nd") return 0 ;; esac
     done
-    dir=$(dirname "$path")
+    dir=$(dirname "$p")
     while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
-        if [ -f "$REPO_ROOT/$dir/.nopublish" ]; then
-            echo -e "${RED}❌ NO-PUBLISH PATH STAGED: $path${NC}"
-            echo "   $dir/.nopublish marks this tree as local-only."
-            VIOLATIONS=$((VIOLATIONS + 1))
-            break
-        fi
+        [ -e "$REPO_ROOT/$dir/.nopublish" ] && return 0
         dir=$(dirname "$dir")
     done
-done < <(git diff --cached --name-only -z --diff-filter=ACMR)
-
-# ----------------------------------------------------------------
-# 1. Credential scan over every staged TEXT file
-# ----------------------------------------------------------------
-is_binary() {
-    # git reports "-" for both numstat columns on binary blobs
-    [ "$(git diff --cached --numstat -- "$1" | cut -f1)" = "-" ]
-}
-
-# A 30+ char alphanumeric run that is NOT one of the known-safe shapes.
-# Safe shapes are judged on the TOKEN itself; masks are judged on the line.
-token_is_safe() {
-    local tok="$1"
-    # hex digests: md5(32) sha1(40) sha224(56) sha256(64) sha384(96) sha512(128)
-    if printf '%s' "$tok" | grep -qiE '^[0-9a-f]{32}$|^[0-9a-f]{40}$|^[0-9a-f]{56}$|^[0-9a-f]{64}$|^[0-9a-f]{96}$|^[0-9a-f]{128}$'; then
-        return 0
-    fi
-    # OpenSSH public key body
-    case "$tok" in AAAAB3Nza*|AAAAC3Nza*|AAAAE2VjZHNh*) return 0 ;; esac
     return 1
 }
 
-line_is_whitelisted() {
-    printf '%s' "$1" | grep -qiE '(masked|redacted|example|placeholder|fingerprint|sha-?(1|224|256|384|512)|md5|checksum|digest|uuid|public[[:space:]]+key|key[[:space:]]+id|ssh-ed25519|ssh-rsa|<[^>]*>)'
+is_ignored() {  # path -> 0 if .gitignore excludes it (so it can only have been force-staged)
+    # ./ prefix: a leading ':' would otherwise be read as pathspec magic
+    git check-ignore -q --no-index -- "./$1" 2>/dev/null
 }
 
-while IFS= read -r -d '' file; do
-    [ -z "$file" ] && continue
-    is_binary "$file" && continue
+RE_NAME='(password|secret|credential|\.env$|_rsa$|\.pem$)'
+# A program named after secrets HANDLES them (scripts/claude/secret_scan.py);
+# a data file named after secrets HOLDS them. Only the latter is a violation
+# by name — a program's content is still scanned like every other blob.
+RE_CODE='\.(py|sh|ps1)$'
 
-    STAGED_CONTENT=$(git show ":$file" 2>/dev/null) || continue
-
-    HITS=""
-    while IFS= read -r numbered; do
-        [ -z "$numbered" ] && continue
-        lineno="${numbered%%:*}"
-        linetext="${numbered#*:}"
-        line_is_whitelisted "$linetext" && continue
-        while IFS= read -r tok; do
-            [ -z "$tok" ] && continue
-            token_is_safe "$tok" && continue
-            HITS="${HITS}  line ${lineno}: ${tok:0:12}…(${#tok} chars)"$'\n'
-            break
-        done < <(printf '%s' "$linetext" | grep -oE '[a-zA-Z0-9]{30,}')
-    done < <(printf '%s' "$STAGED_CONTENT" | grep -nE '[a-zA-Z0-9]{30,}')
-
-    if [ -n "$HITS" ]; then
-        echo -e "${RED}❌ SUSPECT CREDENTIAL in $file:${NC}"
-        printf '%s' "$HITS" | head -5
-        VIOLATIONS=$((VIOLATIONS + 1))
-    fi
-
-    # Private key material
-    # NOTE: optional group uses `( )?`, NOT `( |)` — BSD grep (macOS) rejects
-    # empty alternation branches with "empty (sub)expression" and the check
-    # would silently fail open.
-    if printf '%s' "$STAGED_CONTENT" | grep -qE 'BEGIN (RSA |DSA |EC |OPENSSH |PGP )?PRIVATE KEY'; then
-        echo -e "${RED}❌ PRIVATE KEY DETECTED in $file${NC}"
-        VIOLATIONS=$((VIOLATIONS + 1))
-    fi
-
-    # Cloud / API keys
-    if printf '%s' "$STAGED_CONTENT" | grep -qE '(AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|sk_live_[0-9a-zA-Z]{24,}|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{22,}|xox[baprs]-[0-9A-Za-z-]{10,})'; then
-        echo -e "${RED}❌ CLOUD/API KEY PATTERN in $file${NC}"
-        VIOLATIONS=$((VIOLATIONS + 1))
-    fi
-
-    # Explicit "password: <plaintext>" (warning — too noisy to block)
-    if printf '%s' "$STAGED_CONTENT" | grep -iE 'password[[:space:]]*[:=][[:space:]]*[a-zA-Z0-9]{8,}' \
-        | grep -qivE '(masked|redacted|<|example|placeholder)'; then
-        echo -e "${YELLOW}⚠️  Possible plaintext password in $file (review manually)${NC}"
-        WARNINGS=$((WARNINGS + 1))
-    fi
-done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+# Records for the scanner: "<blob-sha> <path>\0" — a temp file because a
+# bash variable cannot carry NUL and the walk must happen exactly once.
+RECORDS=$(mktemp "${TMPDIR:-/tmp}/precommit.XXXXXX") || { echo "❌ mktemp failed"; exit 1; }
+trap 'rm -f "$RECORDS"' EXIT
+: > "$RECORDS"
 
 # ----------------------------------------------------------------
-# 2. Filenames that advertise secrets
+# 1. One walk over the index
+#    ":srcmode dstmode srcsha dstsha S[score]\0path\0"  (R/C: "\0old\0new\0")
 # ----------------------------------------------------------------
-FORBIDDEN_NAMES=$(git diff --cached --name-only --diff-filter=ACMR \
-    | grep -iE '(password|secret|credential|\.env$|_rsa$|\.pem$)' || true)
-if [ -n "$FORBIDDEN_NAMES" ]; then
-    echo -e "${RED}❌ FORBIDDEN FILENAME being committed:${NC}"
-    echo "$FORBIDDEN_NAMES"
-    VIOLATIONS=$((VIOLATIONS + 1))
+while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
+    set -- $meta
+    dstmode=$2; dstsha=$4; st=${5:0:1}
+    if [ "$st" = "R" ] || [ "$st" = "C" ]; then IFS= read -r -d '' path || break; fi
+    [ -z "$path" ] && continue
+
+    # 1a. no-publish / never-commit material
+    if is_no_publish "$path"; then
+        echo -e "${RED}❌ NO-PUBLISH PATH STAGED: $path${NC}"
+        echo "   local-only tree (platform ToS / .nopublish marker). Unstage: git rm --cached '$path'"
+        VIOLATIONS=$((VIOLATIONS + 1))
+    elif is_ignored "$path"; then
+        echo -e "${RED}❌ IGNORED PATH FORCE-STAGED: $path${NC}"
+        echo "   .gitignore excludes it ($(git check-ignore -v --no-index -- "./$path" 2>/dev/null | cut -f1)); it can only be in the index by force."
+        VIOLATIONS=$((VIOLATIONS + 1))
+    fi
+
+    # 1b. filenames that advertise secrets (raw path, so quoting cannot hide it)
+    if [[ "$path" =~ $RE_NAME ]] && ! [[ "$path" =~ $RE_CODE ]]; then
+        echo -e "${RED}❌ FORBIDDEN FILENAME being committed: $path${NC}"
+        VIOLATIONS=$((VIOLATIONS + 1))
+    fi
+
+    # 1c. collect the blob for the content scan (a gitlink has no blob)
+    [ "$dstmode" = "160000" ] && continue
+    [[ "$dstsha" =~ ^0+$ ]] && continue
+    printf '%s %s\0' "$dstsha" "$path" >> "$RECORDS"
+done < <(git diff --cached --raw -z --no-abbrev --diff-filter=ACMRT)
+
+# ----------------------------------------------------------------
+# 2. Content: every staged blob through the shared scanner, ONE process
+# ----------------------------------------------------------------
+if [ -s "$RECORDS" ]; then
+    if command -v python3 >/dev/null 2>&1 && [ -f "$SCANNER" ]; then
+        SCAN_OUT=$(python3 "$SCANNER" --git-blobs < "$RECORDS" 2>&1); rc=$?
+        if [ "$rc" -eq 1 ]; then
+            echo -e "${RED}❌ SUSPECT CREDENTIAL / KEY / IDENTIFIER in staged content:${NC}"
+            printf '%s\n' "$SCAN_OUT" | sed 's/^/   /'
+            nfiles=$(printf '%s\n' "$SCAN_OUT" | sed -E 's/: line [0-9]+ \[[^]]*\]: .*$//' | sort -u | grep -c .)
+            VIOLATIONS=$((VIOLATIONS + ${nfiles:-1}))
+        elif [ "$rc" -ne 0 ]; then
+            echo -e "${RED}❌ secret scanner unavailable — commit blocked (fail closed)${NC}"
+            printf '%s\n' "$SCAN_OUT" | sed 's/^/   /'
+            VIOLATIONS=$((VIOLATIONS + 1))
+        fi
+    else
+        echo -e "${RED}❌ secret scanner unavailable — commit blocked (fail closed)${NC}"
+        echo "   needs python3 on PATH and $SCANNER"
+        VIOLATIONS=$((VIOLATIONS + 1))
+    fi
 fi
 
 # ----------------------------------------------------------------

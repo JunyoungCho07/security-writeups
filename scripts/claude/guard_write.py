@@ -1,24 +1,38 @@
 #!/usr/bin/env python3
 # =====================================================================
-# guard_write.py — Claude Code PostToolUse hook (matcher: Write|Edit)
+# guard_write.py — Claude Code PostToolUse hook
+#                  (matcher: Write|Edit|MultiEdit|NotebookEdit)
 #
 # Two jobs, both advisory (exit 2 = warning fed back to the model; the
 # write has already happened, so this layer never blocks — it corrects):
 #
-#   1. CREDENTIALS — catch an unmasked password the moment it lands in a
-#      note, not at commit time. The git pre-commit hook is the hard gate;
-#      this is the fast one.
+#   1. CREDENTIALS + IDENTIFIERS — catch an unmasked password or a personal
+#      identifier the moment it lands in a note, not at commit time. The
+#      rules live in secret_scan.py, shared with the git hooks, so what
+#      this layer warns about is exactly what the hard gate will block.
 #   2. PLACEMENT + NAMING — the vault's structure is a real convention
 #      (_System/Vault_Structure.md). A misfiled note is invisible to the
 #      MOC and to future search, so drift is worth catching immediately.
 #
 # Scope: files inside the vault only. The harness's own scratchpad and
 # anything outside the repo are none of this hook's business.
+#
+# Input shapes read (2026-09-26 audit): Write {file_path, content},
+# Edit {file_path, new_string}, MultiEdit {file_path, edits[].new_string},
+# NotebookEdit {notebook_path, new_source}. Anything malformed — a
+# tool_input that is a string, a file_path that is an int — exits 0:
+# an advisory layer never bricks a session with a traceback.
 # =====================================================================
 import json
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import secret_scan                  # the shared rule set
+except Exception:
+    secret_scan = None                  # advisory: no scanner, no credential check
 
 VAULT_DIRS = {
     "Wargames", "Concepts", "Tools", "_MOC", "_Log", "_System", "_Templates",
@@ -27,7 +41,7 @@ VAULT_DIRS = {
 CONCEPT_DOMAINS = {"Linux", "Crypto", "Network", "Web", "Git", "Binary"}
 ROOT_FILES = {
     "CLAUDE.md", "README.md", "COWORK_PROJECT_INSTRUCTIONS.md",
-    ".gitignore", "Roadmap_Post_Bandit.md",
+    ".gitignore", ".gitattributes", "Roadmap_Post_Bandit.md",
 }
 
 PASCAL_SNAKE = re.compile(r"^[A-Z][A-Za-z0-9]*(_[A-Z0-9][A-Za-z0-9]*)*$")
@@ -35,17 +49,6 @@ LEVEL_RE = re.compile(r"^Level_\d{2}$")
 LOG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_session$")
 MOC_RE = re.compile(r"^MOC_[A-Z][A-Za-z0-9_]*$")
 LOWER_TOOL = re.compile(r"^[a-z0-9][a-z0-9_.-]*$")
-
-SAFE_HEX = re.compile(
-    r"^(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{40}|[0-9a-fA-F]{56}"
-    r"|[0-9a-fA-F]{64}|[0-9a-fA-F]{96}|[0-9a-fA-F]{128})$"
-)
-WHITELIST_LINE = re.compile(
-    r"(masked|redacted|example|placeholder|fingerprint|sha-?(1|224|256|384|512)"
-    r"|md5|checksum|digest|uuid|public\s+key|key\s+id|ssh-ed25519|ssh-rsa|<[^>]*>)",
-    re.I,
-)
-TOKEN = re.compile(r"[a-zA-Z0-9]{30,}")
 
 notes = []
 
@@ -58,7 +61,9 @@ def repo_root(data):
     root = os.environ.get("CLAUDE_PROJECT_DIR")
     if root:
         return os.path.realpath(root)
-    cwd = data.get("cwd") or os.getcwd()
+    cwd = data.get("cwd")
+    if not isinstance(cwd, str) or not cwd:
+        cwd = os.getcwd()
     cur = os.path.realpath(cwd)
     while cur != "/":
         if os.path.isdir(os.path.join(cur, ".git")):
@@ -67,20 +72,44 @@ def repo_root(data):
     return os.path.realpath(cwd)
 
 
-def check_credentials(content, rel):
-    for i, line in enumerate(content.splitlines(), start=1):
-        if WHITELIST_LINE.search(line):
-            continue
-        for tok in TOKEN.findall(line):
-            if SAFE_HEX.match(tok) or tok.startswith(("AAAAB3Nza", "AAAAC3Nza")):
-                continue
-            warn(
-                "possible UNMASKED CREDENTIAL in %s line %d: %s…(%d chars).\n"
-                "   If it is a real password, replace it with "
-                "'<password masked>' NOW — this repo is public (CLAUDE.md §1.1)."
-                % (rel, i, tok[:12], len(tok))
-            )
-            return
+def extract_content(ti):
+    """Every piece of text the tool wrote, whatever the tool's shape."""
+    parts = []
+    for key in ("content", "new_string", "new_source"):
+        v = ti.get(key)
+        if isinstance(v, str):
+            parts.append(v)
+    edits = ti.get("edits")
+    if isinstance(edits, list):
+        for e in edits:
+            if isinstance(e, dict) and isinstance(e.get("new_string"), str):
+                parts.append(e["new_string"])
+    return "\n".join(parts)
+
+
+def check_credentials(content, rel, identifiers):
+    if secret_scan is None:
+        return
+    hits = secret_scan.scan_text(secret_scan.normalise(content), binary=False,
+                                 identifiers=identifiers)
+    if not hits:
+        return
+    lineno, rule, prev = hits[0]
+    more = " (+%d more)" % (len(hits) - 1) if len(hits) > 1 else ""
+    if rule == "identifier":
+        warn(
+            "PERSONAL IDENTIFIER in %s line %d: %s%s.\n"
+            "   Committed files carry the GitHub handle and nothing else "
+            "(CLAUDE.md §1.5) — remove it NOW; the pre-commit hook will refuse it."
+            % (rel, lineno, prev, more)
+        )
+    else:
+        warn(
+            "possible UNMASKED CREDENTIAL in %s line %d [%s]: %s%s.\n"
+            "   If it is a real password, replace it with "
+            "'<password masked>' NOW — this repo is public (CLAUDE.md §1.1)."
+            % (rel, lineno, rule, prev, more)
+        )
 
 
 def check_placement(rel):
@@ -120,10 +149,14 @@ def check_placement(rel):
         return                      # scripts, configs, markers: not our business
 
     if top == "Wargames":
-        if len(parts) < 3:
-            return
         if stem.startswith("_") or MOC_RE.match(stem):
             return                  # _LOCAL_ONLY.md marker, per-game MOC
+        if len(parts) == 2:
+            warn(
+                "`%s` sits directly in Wargames/. Level notes live in a game "
+                "folder: Wargames/{Game}/Level_NN.md (CLAUDE.md §2)." % rel
+            )
+            return
         if not LEVEL_RE.match(stem):
             warn(
                 "`%s` should be `Level_NN.md` with a TWO-DIGIT number "
@@ -166,38 +199,43 @@ def check_placement(rel):
 def main():
     try:
         data = json.loads(sys.stdin.read() or "{}")
-    except Exception:
-        sys.exit(0)
-    if not isinstance(data, dict):
-        sys.exit(0)
+        if not isinstance(data, dict):
+            return 0
 
-    ti = data.get("tool_input") or {}
-    path = ti.get("file_path") or ""
-    content = ti.get("content") or ti.get("new_string") or ""
-    if not path:
-        sys.exit(0)
+        ti = data.get("tool_input")
+        if not isinstance(ti, dict):
+            return 0
+        path = ti.get("file_path") or ti.get("notebook_path")
+        if not isinstance(path, str) or not path:
+            return 0
+        content = extract_content(ti)
 
-    root = repo_root(data)
-    real = os.path.realpath(path)
-    if not real.startswith(root + os.sep):
-        sys.exit(0)                 # outside the vault: not policed
-    rel = os.path.relpath(real, root)
-    if rel.split(os.sep)[0] in (".git",):
-        sys.exit(0)
+        root = repo_root(data)
+        real = os.path.realpath(path)
+        if not real.startswith(root + os.sep):
+            return 0                # outside the vault: not policed
+        rel = os.path.relpath(real, root)
+        if rel.split(os.sep)[0] in (".git",):
+            return 0
 
-    try:
-        if isinstance(content, str) and content.strip():
-            check_credentials(content, rel)
+        identifiers = ()
+        if secret_scan is not None:
+            try:
+                identifiers = secret_scan.load_identifiers(root)
+            except Exception:
+                identifiers = ()
+        if content.strip():
+            check_credentials(content, rel, identifiers)
         check_placement(rel)
     except Exception:
-        sys.exit(0)                 # advisory layer: never brick a session
+        return 0                    # advisory layer: never brick a session
 
     if notes:
         sys.stderr.write("⚠ write-guard:\n" + "\n".join(" • " + n for n in notes)
                          + "\n")
-        sys.exit(2)
-    sys.exit(0)
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
