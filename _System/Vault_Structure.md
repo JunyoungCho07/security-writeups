@@ -67,8 +67,8 @@ single file is how a vault turns into a junk drawer.
 
 New **concept domain** (a subfolder of `Concepts/`) follows the same rule.
 Current domains: `Linux`, `Network`, `Crypto`, `Web`, `Git`, `Binary`.
-`Crypto` and `Web` are declared but still empty — that is intentional headroom,
-not drift.
+`Web` and `Git` are declared but still empty — that is intentional headroom,
+not drift. (`Crypto` got its first note on 2026-08-30.)
 
 **Never create:** a folder for one note, a dated folder (the filename carries the
 date), a `misc/`, `tmp/`, or `notes/` folder, or a second folder that overlaps an
@@ -82,6 +82,7 @@ security-writeups/
 ├── CLAUDE.md                    ← agent contract (rules, not knowledge)
 ├── README.md, Roadmap_Post_Bandit.md
 ├── .claude/{settings.json, skills/}
+├── .obsidian/                   ← editor config (only the root one is tracked)
 ├── _System/                     ← protocols the agent loads on demand
 ├── _Templates/                  ← note skeletons
 ├── _MOC/MOC_{Scope}.md          ← one map per wargame/scope
@@ -93,11 +94,13 @@ security-writeups/
 ```
 
 **Exception — no-publish trees.** A game whose platform forbids public writeups
-(currently `Wargames/Pwn_College/`) keeps *everything* inside its own folder,
+(currently `Wargames/Pwn_College/` and `Wargames/GoN/`) keeps *everything* inside its own folder,
 including its MOC (`MOC_Pwn_College.md`) and an `_LOCAL_ONLY.md` marker. It does
 **not** get an entry in the public `_MOC/`. This is deliberate: a public MOC that
 indexes a private tree leaks the tree's shape. Mark such a folder with an empty
-`.nopublish` file — the pre-commit hook refuses to stage anything beneath it.
+`.nopublish` file — the pre-commit and pre-push hooks refuse anything beneath it,
+and the session guard restores the marker in the hardcoded trees if it goes
+missing (markers are untracked, so a fresh clone starts without them).
 
 ## [5] Agent memory policy
 

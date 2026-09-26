@@ -1,6 +1,6 @@
 ---
 date: {{date}}
-domain: Linux | Crypto | Network | Web
+domain: Linux | Crypto | Network | Web | Git | Binary
 topic: {{English_Topic_Name}}
 tags: [domain-tag, technique-tag]
 status: 🟡 developing

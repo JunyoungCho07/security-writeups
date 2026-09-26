@@ -33,13 +33,15 @@ prerequisites: [Level_NN-1]
 ```yaml
 ---
 date: YYYY-MM-DD
-domain: Linux | Crypto | Network | Web
+domain: Linux | Crypto | Network | Web | Git | Binary
 topic: {English_Topic_Name}
 tags: [domain-tag, technique-tag]
 status: 🔴 | 🟡 | 🟢 | ⭐
+note_tier: lite                          # lite notes only; a full 15-step atom omits it
 mastery: 0-100
-first_encountered: [[Wargames/Bandit/Level_NN]]
+first_encountered: [[Wargames/Bandit/Level_NN]]   # or "External: local-only wargame tree (no-publish) — <context>"
 reapplied_in: []
+last_reviewed: YYYY-MM-DD                # full atoms only
 ---
 ```
 
@@ -52,6 +54,7 @@ category: file-discovery | network | crypto | text-processing | ...
 man_section: 1
 related: [tool1, tool2]
 last_used: YYYY-MM-DD
+tags: [tool, {platform-or-domain-tag}]
 ---
 ```
 
