@@ -15,7 +15,16 @@
 # Fail-mode policy (deliberate): a crash or an unparseable payload must never
 # brick the session, so every unexpected exception exits 0. A *matched*
 # violation always exits 2. Bypass attempts that the parser cannot decompose
-# are treated as matches, not as crashes.
+# are treated as matches, not as crashes — and a crash on a command that
+# names a gated marker is itself a match (crash_scan), not a pass.
+#
+# TERMINAL (decided 2026-09-26). This parser is a denylist over an infinite
+# command space and is not hunted for further bypass classes; a new class is
+# recorded as a documented limit in _System/Harness.md, not patched here.
+# The invariants (no unsigned commit, no scan bypass, no no-publish path
+# reaching the index or the remote) rest on the STATE layers — pre-commit,
+# pre-push, guard_index.sh, session-guard.sh — and on settings deny/ask.
+# This layer's job is to refuse the known forms early and cheaply.
 # =====================================================================
 import json
 import os
@@ -32,20 +41,27 @@ import sys
 PROTECTED_PATH_MARKERS = (
     ".git/hooks",
     "hooks/pre-commit",        # catches $(git rev-parse --git-dir)/hooks/pre-commit
+    "hooks/pre-push",          # the publication gate (signatures, history scan)
+    "hooks/pre-merge-commit",  # shim that runs pre-commit on a merge commit
     "scripts/claude",
     "scripts/pre-commit",
+    "scripts/pre-push",
     ".claude/settings",
     ".git/config",             # editing it disables signing / redirects hooks
     ".nopublish",              # the marker that makes a tree no-publish
+    "info/identifiers",        # <git-dir>/info/identifiers: the operator's
+                               # personal-identifier list (§1.5) — never
+                               # written from the shell, never read (below)
 )
 
 # Basenames of enforcement-layer files. A `find -name <basename>` names the
 # target without ever writing the full protected path, so the marker scan alone
 # misses it — this set closes that.
 PROTECTED_BASENAMES = {
-    "pre-commit", "settings.json", "settings.local.json",
+    "pre-commit", "pre-push", "pre-merge-commit",
+    "settings.json", "settings.local.json",
     "bash-guard.sh", "session-guard.sh", "write-guard.sh",
-    "guard_bash.py", "guard_write.py", "guard_index.sh",
+    "guard_bash.py", "guard_write.py", "guard_index.sh", "secret_scan.py",
 }
 
 # Content that must never reach the index or the remote (platform ToS, or —
@@ -53,10 +69,10 @@ PROTECTED_BASENAMES = {
 #
 # `path_hits` is a case-SENSITIVE substring test, which is why "GoN" is safe to
 # list bare: lowercase "gon" (dragon, polygon, hexagon) cannot collide with it.
-# A lowercase spelling on macOS's case-insensitive APFS would slip past this
-# tuple, but not past the `.nopublish` marker scan in pre-commit/guard_index.sh
-# — those resolve the marker through the filesystem, which is case-insensitive
-# too. Proactive layer here, state-based backstop there.
+# A case-variant spelling (`Wargames/gon/`, `WARGAMES/GON/`) is caught by the
+# second, case-FOLDED test in `path_hits`, which only fires on a whole path
+# component of a token that contains a `/` — so `Polygon_Mesh.md` still passes.
+# The state layers (pre-commit, guard_index.sh, pre-push) fold case too.
 NO_PUBLISH_MARKERS = ("Pwn_College", "pwn_college", "pwn.college", "GoN")
 
 # Private key material. A security vault has no reason to read the operator's
@@ -64,7 +80,18 @@ NO_PUBLISH_MARKERS = ("Pwn_College", "pwn_college", "pwn.college", "GoN")
 SECRET_READ_MARKERS = (
     "/.ssh", "/.gnupg", "/etc/shadow", "/.aws/credentials",
     "/.docker/config.json",
+    # colima/lima generate an SSH private key for the VM; gh stores its OAuth
+    # token in hosts.yml; the rest are the usual token files on a dev Mac.
+    "/_lima/_config/user", "/.lima/_config/user", "/.config/gh/hosts.yml",
+    "/.netrc", "/.git-credentials", "/.kube/config", "/etc/master.passwd",
+    "/.aws/", "/.config/gcloud/",
 )
+# bare basenames (a relative `cat .env` carries no slash for the marker scan).
+# Existence checks, `echo`/`printf` and `git check-ignore` may still NAME
+# these — only commands that would read the content are refused.
+SECRET_BASENAMES = {".env", ".netrc", ".git-credentials", ".npmrc", ".pypirc"}
+# commands that test or list a path without reading its content
+_EXISTENCE_CMDS = {"test", "[", "[[", "ls", "stat", "file", "du"}
 
 # Commands that only read. A protected path may appear in these.
 READONLY_CMDS = {
@@ -228,6 +255,15 @@ def normalize_newlines(cmd):
                 continue
             i += 1
             continue
+        if ch == "#" and (i == 0 or cmd[i - 1] in " \t\n;|&()<>"):
+            # An unquoted `#` at the start of a word begins a comment that runs
+            # to the end of the LINE. Left to shlex, its comment handling runs
+            # to the end of the whole newline-collapsed string, so one comment
+            # line hid every later line (`# stage\ngit commit -n`). Drop only
+            # this line's remainder and keep the newline for the `;` below.
+            j = cmd.find("\n", i)
+            i = len(cmd) if j == -1 else j
+            continue
         if ch in ("'", '"'):
             quote = ch
             out.append(ch)
@@ -242,7 +278,17 @@ def tokenize(cmd):
     lex = shlex.shlex(normalize_newlines(cmd), posix=True,
                       punctuation_chars=True)
     lex.whitespace_split = True
-    return list(lex)
+    # Comments are already stripped above, with bash's word-start rule. shlex's
+    # own commenter treats a `#` ANYWHERE in a word (`a#b`, `${#x}`) as a
+    # comment to the end of the string — the same hide-the-next-line hole.
+    lex.commenters = ""
+    # A blank line becomes `;;` after newline collapsing, and shlex's
+    # punctuation run makes that ONE token, which split_segments does not
+    # recognise — so `echo hi\n\ngit commit -n` folded into a single `echo`
+    # segment. Any pure-operator run that is not a known operator is a
+    # separator.
+    return [";" if (re.fullmatch(r"[;&|]+", t) and t not in SEGMENT_SEPARATORS)
+            else t for t in lex]
 
 
 def split_segments(tokens):
@@ -347,21 +393,42 @@ def path_hits(token, markers):
     """
     raw = token.replace("\\", "/")
     norm = os.path.normpath(raw)          # collapse ./  //  and resolve ..
-    return any(m in raw or m in norm for m in markers)
+    if any(m in raw or m in norm for m in markers):
+        return True
+    # Case-folded spelling of a no-publish tree (`Wargames/gon/`, `WARGAMES/
+    # GON/L1.md`) — APFS resolves it to the same directory. Folded matching is
+    # restricted to a whole path COMPONENT of a token that contains a `/`, so
+    # the bare word "gon" and `Polygon_Mesh.md` never collide with "GoN".
+    if "/" in raw:
+        folded = {m.lower() for m in markers}
+        return any(c.lower() in folded for c in norm.split("/") if c)
+    return False
 
 
 _GLOB_CHARS = "*?[{"
 # partial prefixes catch a glob that stops short of the full marker, e.g.
-# `scripts/cla*` (→ scripts/claude) or `.git/hook*`.
-_PARTIALS = ("scripts/cla", "scripts/pre-commit", ".git/hook",
-             "hooks/pre-commit", ".claude/set")
+# `scripts/cla*` (→ scripts/claude) or `.git/hook*`. `scripts/pre` covers
+# `scripts/pre-*`, which reaches both pre-commit and pre-push.
+_PARTIALS = ("scripts/cla", "scripts/pre", "scripts/pre-commit",
+             "scripts/pre-push", ".git/hook", "hooks/pre-commit",
+             "hooks/pre-push", ".claude/set")
 # keywords that make a glob suspicious when it also carries a wildcard
-_GLOB_KEYWORDS = ("claude", "hook", "pre-commit", "settings", "/.git", "guard")
+_GLOB_KEYWORDS = ("claude", "hook", "pre-commit", "pre-push", "pre-merge",
+                  "settings", "/.git", "guard", "secret_scan", "identifiers")
+# The harness's own temp root (/tmp/claude-<uid>/…, the designated scratchpad)
+# carries "claude" in every path, so `cp "$SCRATCH"/lanes/L*.md out/` read as a
+# glob aimed at the guards (2026-09-26 audit). The keyword heuristic judges only
+# what follows that root; the marker and partial checks above still see it all.
+_HARNESS_TMP = re.compile(r"^(/private)?/tmp/claude-\d+/")
 
 
 def expand_braces(tok):
     """Expand a single `{a,b,c}` group so `scripts/{claude,pre-commit}` and
     `scripts/{cla,pre}*` are checked as their variants."""
+    if tok.count("{") > 12:
+        # >12 groups is not a path, it is a parser bomb (2^n variants and n
+        # recursion frames); the raw token still gets the substring scan.
+        return [tok]
     m = re.search(r"\{([^{}]*,[^{}]*)\}", tok)
     if not m:
         return [tok]
@@ -397,7 +464,8 @@ def _aims_one(token, loose=False):
         return True
     if "claude/settings" in n or (".git" in n and "hooks" in n):
         return True
-    if any(g in n for g in _GLOB_CHARS) and any(k in n for k in _GLOB_KEYWORDS):
+    g = _HARNESS_TMP.sub("", n)
+    if any(c in g for c in _GLOB_CHARS) and any(k in g for k in _GLOB_KEYWORDS):
         return True
     return False
 
@@ -693,8 +761,10 @@ def check_git_config_kv(key, value, inline):
                 "No inline aliases in this vault; run the real command directly.",
             )
         if kl in ("core.fsmonitor", "core.sshcommand", "uploadpack.packobjectshook",
-                  "core.pager") and v.strip():
-            # config keys whose value is executed as a command
+                  "core.pager") and v.strip() and not (
+                kl == "core.pager" and v.strip() in ("cat", "less", "more")):
+            # config keys whose value is executed as a command (a bare pager
+            # name is the documented way to silence paging: `-c core.pager=cat`)
             block(
                 "harness integrity",
                 "`git -c %s=%s` sets a config value git will execute." % (k, v),
@@ -903,21 +973,103 @@ def check_no_publish(tokens, ctx):
 
 # --- generic segment analysis ---------------------------------------
 
-def touches_secret(token):
+def touches_secret(token, bare=True):
     """Private-key / credential path, tolerant of globs (`~/.ss[h]`, `~/.ss*`).
 
     Runs for EVERY command — including find and archivers — so `find ~/.ssh
     -exec cat` and `tar cf - ~/.ssh` are caught, not just `cat ~/.ssh/id_rsa`.
+    `bare=False` skips the slash-less basename rule (`.env`) for callers that
+    only name a path without reading it.
     """
     norm = os.path.expanduser(token).replace("\\", "/")
     stripped = re.sub(r"[\[\]{}]", "", norm)          # .ss[h] -> .ssh
+    # APFS is case-insensitive (`~/.SSH`), and a relative spelling after
+    # `cd ~` (`.ssh/id_rsa`, `tar -C ~ .ssh`) carries no leading slash.
+    norm, stripped = norm.lower(), stripped.lower()
     for m in SECRET_READ_MARKERS:
         if m in norm or m in stripped:
             return True
+    if bare and os.path.basename(stripped) in SECRET_BASENAMES:
+        return True
+    if re.match(r"^\.(ssh|gnupg|aws)(/|$)", stripped):
+        return True
     # a glob sitting right after a secret-dir prefix: ~/.ss*  ~/.gnu*  ~/.aw*
     if re.search(r"/\.(ss|gnupg|gpg|aws|gnu|aw)[*?\[]", norm):
         return True
     return False
+
+
+_IDENT_FILE = re.compile(r"(^|/)info/identifiers$")
+
+
+def touches_identifiers(token):
+    """<git-dir>/info/identifiers — the operator's personal-identifier list
+    (CLAUDE.md §1.5). Absolute, relative, or via `$(git rev-parse --git-dir)`;
+    the agent neither reads it into context nor writes it."""
+    n = os.path.normpath(os.path.expanduser(token).replace("\\", "/")).lower()
+    return bool(_IDENT_FILE.search(n))
+
+
+def mutator_write_targets(cmd, seg):
+    """Which of a mutator's tokens could it WRITE?
+
+    Most mutators write every path operand. sed/awk/xxd are the exceptions:
+    they are stream editors that only write when told to —
+      sed : -i/--in-place (operands), -f (unseen script: everything), or a
+            `w file` command, whose filename rides INSIDE the script token;
+      awk : -f (unseen), or a script containing `>`/`|`/system();
+      xxd : only with -r/-revert (2nd operand is the output file).
+    Otherwise their file operands are only read, so `sed -n '1,60p' <guard>`
+    and `awk 'NR<20' <guard>` are inspection, not mutation.
+    """
+    args = seg[1:]
+    if cmd in ("sed", "gsed"):
+        inplace = any(
+            t.startswith("--in-place") or t in ("-f", "--file")
+            or t.startswith("--file=")
+            or (t.startswith("-") and not t.startswith("--") and "i" in t[1:])
+            for t in args)
+        if inplace:
+            return args
+        scripts, positional, expect = [], [], False
+        for t in args:
+            if expect:
+                scripts.append(t)
+                expect = False
+                continue
+            if t in ("-e", "--expression"):
+                expect = True
+                continue
+            if t.startswith("--expression="):
+                scripts.append(t.split("=", 1)[1])
+                continue
+            if t.startswith("--"):
+                continue
+            if t.startswith("-") and len(t) > 1:
+                if "e" in t[1:]:            # -ne 'script' bundles -e
+                    expect = True
+                continue
+            positional.append(t)
+        if not scripts and positional:
+            scripts = positional[:1]        # first operand is the script
+        return scripts
+    if cmd in ("awk", "gawk", "mawk"):
+        # a bare `>` token is the SHELL's redirection (checked separately),
+        # not awk code — only an operator inside the script token counts. A
+        # flag token is skipped (`-F'|'` is a field separator) except gawk's
+        # fused `--source=CODE`, which IS the script.
+        code = [t.split("=", 1)[1] if t.startswith("--source=") else t
+                for t in args
+                if (not t.startswith("-") or t.startswith("--source="))
+                and t not in REDIRECT_OPS]
+        can_write = any(t in ("-f", "--file") or t.startswith("--file=")
+                        for t in args) or any(
+            ">" in t or "|" in t or "system" in t for t in code)
+        return args if can_write else []
+    if cmd == "xxd":
+        # xxd matches option PREFIXES (`-rp`, `-revert`, `--r` all revert)
+        return args if any(re.match(r"^-{1,2}r", t) for t in args) else []
+    return args
 
 
 def check_segment(seg, raw):
@@ -952,14 +1104,44 @@ def check_segment(seg, raw):
 
     # 0. the operator's own private keys are never vault material — checked
     #    FIRST so it also covers find/xargs/archivers that return early below.
+    #    The slash-less basename rule (`.env`) is skipped for commands that only
+    #    name the path: existence tests, echo/printf, `git check-ignore`.
+    names_only = (cmd in _EXISTENCE_CMDS or cmd in ("echo", "printf")
+                  or (cmd == "git" and "check-ignore" in seg))
     for tok in seg[1:]:
-        if touches_secret(tok):
+        if touches_secret(tok, bare=not names_only):
             block(
                 "CLAUDE.md §1.1 — credential hygiene",
                 "`%s` touches private key material (%s)." % (cmd, tok),
                 "Nothing in this vault requires your own keys, and anything "
                 "read here can end up quoted in a note that gets published.",
             )
+
+    # 0c. exports that never name a path: `gpg --export-secret-keys`, the
+    #     macOS keychain with -w (print the password).
+    if cmd in ("gpg", "gpg2") and any(
+            t.startswith("--export-secret") for t in seg[1:]):
+        block("CLAUDE.md §1.1 — credential hygiene",
+              "`gpg --export-secret-keys` dumps the vault signing key.",
+              "The signing key never leaves the keyring.")
+    if cmd == "security" and "-w" in seg[1:] and any(
+            t.startswith("find-") for t in seg[1:]):
+        block("CLAUDE.md §1.1 — credential hygiene",
+              "`security find-… -w` prints a keychain password.",
+              "Nothing in this vault needs a keychain secret.")
+
+    # 0d. the personal-identifier list (§1.5) is never read into context or
+    #     written; `ls .git/info` / `test -f …` only name it and are fine.
+    if not names_only:
+        for tok in seg[1:]:
+            if touches_identifiers(tok):
+                block(
+                    "CLAUDE.md §1.5 — personal identifiers",
+                    "`%s` reads or writes the operator's identifier list (%s)."
+                    % (cmd, tok),
+                    "That file is the operator's; the agent only ever checks "
+                    "that it exists.",
+                )
 
     # 1. xargs: the operand IS the real command -> re-check the remainder
     if cmd == "xargs":
@@ -978,6 +1160,15 @@ def check_segment(seg, raw):
     #    legitimate enumerates the guard files from a shell command.
     if cmd == "find":
         hit = find_targets_protected(seg)
+        # Enumerating `.nopublish` markers by name is how the no-publish set
+        # is audited (guard_index.sh: "extend by dropping a .nopublish file").
+        # With no executor it is a pure read, so relax ONLY when every hit is
+        # that marker; a guard source/hook/settings file stays refused to name.
+        # (A pipe out of such a find is gated in pipeline_flow.)
+        hits = [t for t in seg[1:] if aims_at_guard(t, loose=True)]
+        if hits and not any(a in seg for a in FIND_MUTATING_ACTIONS) and all(
+                os.path.basename(h) == ".nopublish" for h in hits):
+            hit = None
         if hit is not None:
             block(
                 "harness integrity",
@@ -1029,7 +1220,7 @@ def check_segment(seg, raw):
 
     # 3. protected enforcement paths: reading/executing is fine, rewriting is not
     if cmd in PATH_MUTATORS:
-        for tok in seg[1:]:
+        for tok in mutator_write_targets(cmd, seg):
             if aims_at_guard(tok):
                 block(
                     "harness integrity",
@@ -1088,7 +1279,7 @@ def check_segment(seg, raw):
         for piece in re.split(r"\s+", canon):
             if not piece:
                 continue
-            if touches_secret(piece):
+            if touches_secret(piece) or touches_identifiers(piece):
                 block(
                     "CLAUDE.md §1.1 — credential hygiene",
                     "an interpreter payload assembles a private-key path (%s)."
@@ -1212,6 +1403,14 @@ def extract_substitutions(cmd):
         if em:
             # collapse the echoed/printf'd text to its literal (drop quotes)
             return em.group(1).replace('"', "").replace("'", "")
+        # a `find` (however prefixed: sudo, /usr/bin/) that names an
+        # enforcement-layer file: surface that name so the outer sink
+        # (`rm $(find . -name .nopublish)`) still sees it.
+        words = inner.split()
+        if any(os.path.basename(w) == "find" for w in words):
+            for t in words:
+                if aims_at_guard(t, loose=True):
+                    return t.strip("'\"")
         return "SUBST"
 
     return inners, _SUBST.sub(repl, cmd)
@@ -1350,6 +1549,64 @@ def analyse(cmd_text, depth_guard=False):
         check_segment(seg, cmd_text)
 
 
+# sinks whose STDIN is commands (`printf 'w <guard>' | ed file` writes there)
+_STDIN_CODE_SINKS = {"ed", "ex", "vi", "vim", "nano"}
+_STREAM_EDITORS = {"sed", "gsed", "awk", "gawk", "mawk"}
+# GNU sed's `e` (execute the pattern space / the s/// result as a command):
+# a flag after the closing delimiter — possibly combined, `ge`, `2e` — or a
+# command on its own, `1e cmd`, `/re/e`. A letter before it is a word.
+_SED_EXEC = re.compile(r"(?<![A-Za-z_])[gpIMm0-9]*e(?![A-Za-z0-9_])")
+
+
+def _script_tokens(args):
+    """A stream editor's non-flag tokens (its script and operands), minus a
+    shell redirection operator and its target — those belong to the shell and
+    are checked by the redirect scan. `--expression=` and `--source=` values
+    are scripts too."""
+    out, skip = [], False
+    for t in args:
+        if skip:
+            skip = False
+            continue
+        if t in REDIRECT_OPS:
+            skip = True
+            continue
+        if t.startswith(("--expression=", "--source=")):
+            out.append(t.split("=", 1)[1])
+        elif not t.startswith("-"):
+            out.append(t)
+    return out
+
+
+def consumer_is_pure(target, consumer):
+    """Can this stream editor do nothing but print to stdout?
+
+    Then whatever arrives on its stdin — even a guard path — is inert text.
+    Impure: a script file (-f, unseen), sed in-place (-i), GNU sed `e`
+    (executes data), awk `system()` / `| cmd` (executes data) or `>` (writes
+    to a data-derived file name: `awk '{print > $2}'`).
+    """
+    args = consumer[1:]
+    if any(t in ("-f", "--file") or t.startswith("--file=") for t in args):
+        return False
+    scripts = _script_tokens(args)
+    if target in ("sed", "gsed"):
+        if any(t.startswith("--in-place") or (
+                t.startswith("-") and not t.startswith("--") and "i" in t[1:])
+               for t in args):
+            return False
+        return not any(_SED_EXEC.search(t) for t in scripts)
+    return not any(">" in t or "|" in t or "system" in t for t in scripts)
+
+
+def _xargs_command(consumer):
+    """Index of the command xargs will run (after its own flags), or None."""
+    j = 1
+    while j < len(consumer) and consumer[j].startswith("-"):
+        j += 2 if consumer[j] in ("-I", "-n", "-P", "-d", "-E", "-s") else 1
+    return j if j < len(consumer) else None
+
+
 def pipeline_flow(tokens):
     """Follow data across a pipe: `producer | consumer`.
 
@@ -1358,6 +1615,13 @@ def pipeline_flow(tokens):
     - consumer is a mutator, or xargs feeding one → producer's stdout is a
       file OPERAND (`echo <guard> | xargs rm`), so check the producer's tokens
       as paths.
+    - a sink that acts on stdin sees EVERY upstream stage, not only its
+      neighbour: `echo <guard> | cat | xargs rm` hands the name through a
+      pass-through stage.
+    - a direct sink (`tee`, `gzip`, `cp`, …) writes only to its own operands,
+      which its own segment checks, so `cat <guard> | tee log` is a read.
+      Stream editors get the same relief only when they are pure (above);
+      ed/ex/vim read commands from stdin and always keep the full check.
     """
     runs, connected, cur = [], [], []
     for tok in tokens:
@@ -1369,42 +1633,107 @@ def pipeline_flow(tokens):
             cur.append(tok)
     runs.append(cur)
 
+    upstream = []                    # args of every stage since the last `;`
     for k, conn in enumerate(connected):
+        producer = strip_prefixes(runs[k])
+        upstream = (upstream if k and connected[k - 1] else []) + producer[1:]
         if not conn or k + 1 >= len(runs):
             continue
-        producer = strip_prefixes(runs[k])
         consumer = strip_prefixes(runs[k + 1])
         if not producer or not consumer:
             continue
         ccmd = os.path.basename(consumer[0]).lower()
-
-        if ccmd in INTERPRETERS or ccmd in SHELL_WRAPPERS or ccmd == "eval":
-            for t in producer[1:]:
-                scan_markers_in_code(t, "pipe->" + ccmd)
+        pcmd = os.path.basename(producer[0]).lower()
 
         target = ccmd
+        j = None
         if ccmd == "xargs":
-            j = 1
-            while j < len(consumer) and consumer[j].startswith("-"):
-                j += 2 if consumer[j] in ("-I", "-n", "-P", "-d", "-E",
-                                          "-s") else 1
-            target = os.path.basename(consumer[j]).lower() if j < len(
-                consumer) else ""
-        if target in PATH_MUTATORS or target in INTERPRETERS:
-            for t in producer[1:]:
+            j = _xargs_command(consumer)
+            target = os.path.basename(consumer[j]).lower() if j else ""
+
+        # `find … -name .nopublish | while read f; do rm "$f"; done`: the find
+        # itself is a permitted read, so the pipe must carry the guard. Only a
+        # read-only consumer (or xargs to one) may receive its output.
+        if pcmd == "find" and any(aims_at_guard(t, loose=True)
+                                  for t in producer[1:]):
+            if target not in READONLY_CMDS:
+                block(
+                    "harness integrity",
+                    "`find` output naming an enforcement-layer file is piped "
+                    "into `%s`, which is not a read-only command." % target,
+                    "Only read-only consumers may receive it.",
+                )
+
+        if ccmd in INTERPRETERS or ccmd in SHELL_WRAPPERS or ccmd == "eval":
+            for t in upstream:
+                scan_markers_in_code(t, "pipe->" + ccmd)
+
+        # xargs APPENDS stdin words: `echo false | xargs git config
+        # commit.gpgsign` runs `git config commit.gpgsign false`, and the
+        # per-segment check only ever saw the truncated form. When the
+        # producer is echo/printf the words are literal — re-check the
+        # assembled command.
+        if j is not None and pcmd in ("echo", "printf"):
+            words = list(producer[1:])
+            if pcmd == "echo":
+                while words and re.match(r"^-[neE]+$", words[0]):
+                    words.pop(0)
+            else:                           # printf [-v var] FORMAT words…
+                if words[:1] == ["-v"]:
+                    words = words[2:]
+                words = words[1:]
+            if words:
+                check_segment(consumer[j:] + words, "")
+
+        content_pipe = (
+            ccmd != "xargs" and target in PATH_MUTATORS
+            and target not in INTERPRETERS
+            and target not in _STDIN_CODE_SINKS
+            and (target not in _STREAM_EDITORS
+                 or consumer_is_pure(target, consumer)))
+        # xargs handing words to a shell (`… | xargs sh -c`) is the same as
+        # piping into that shell: the words are code.
+        code_sink = target in INTERPRETERS or (
+            ccmd == "xargs" and (target in SHELL_WRAPPERS or target == "eval"))
+        if (target in PATH_MUTATORS or code_sink) and not content_pipe:
+            for t in upstream:
                 if aims_at_guard(t):
                     block(
                         "harness integrity",
                         "a guard path is piped into `%s` (%s)." % (target, t),
                         "The enforcement layer is not edited through a pipe.",
                     )
-                if touches_secret(t):
+                if touches_secret(t) or touches_identifiers(t):
                     block(
                         "CLAUDE.md §1.1 — credential hygiene",
                         "a private-key path is piped into `%s` (%s)."
                         % (target, t),
                         "Private keys are never vault material.",
                     )
+
+
+_CRASH_MARKERS = tuple(m.lower() for m in
+                       PROTECTED_PATH_MARKERS + NO_PUBLISH_MARKERS
+                       + SECRET_READ_MARKERS) + tuple(
+    b.lower() for b in PROTECTED_BASENAMES) + (
+    "--no-verify", "--no-gpg-sign", "gpgsign", "hookspath",
+    "git commit", "git push")
+
+
+def crash_scan(cmd, exc):
+    """The parser crashed. "Bypass attempts that the parser cannot decompose
+    are treated as matches, not as crashes" (file header) — so if the raw
+    text names anything gated, refuse instead of failing open."""
+    low = cmd.lower()
+    hit = next((m for m in _CRASH_MARKERS if m in low), None)
+    if hit:
+        block(
+            "harness integrity — parser crash",
+            "the policy parser crashed (%s) on a command that names `%s`; an "
+            "unparseable command is a match, not a pass." % (
+                type(exc).__name__, hit),
+            "Simplify the command so the policy layer can parse it.",
+        )
 
 
 def main():
@@ -1430,6 +1759,10 @@ def main():
     except SystemExit:
         raise
     except Exception as exc:                        # noqa: BLE001
+        # A crash must not brick the session — but a crash on a command that
+        # names a gated marker is exactly what a parser bomb aims for. Coarse-
+        # scan the raw text first; only a marker-free crash fails open.
+        crash_scan(cmd, exc)
         fail_open("analysis error: %s" % exc)
 
     sys.exit(0)

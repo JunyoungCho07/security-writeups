@@ -1,5 +1,5 @@
 {
-  "$comment": "security-writeups harness v4. Layers: settings rules are the fast gate; scripts/claude/guard_*.py are the parsers that a prefix rule cannot express. Regression suite: bash scripts/claude/tests/run_tests.sh",
+  "$comment": "security-writeups harness v4.1. Layers, fail modes and limits: _System/Harness.md. Settings rules are the fast gate (deny holds in every mode); scripts/claude/guard_*.py parse what a prefix rule cannot express; the git hooks (pre-commit, pre-push) are the state gates. Regression suite: bash scripts/claude/tests/run_tests.sh",
   "hooks": {
     "SessionStart": [
       {
@@ -24,7 +24,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -69,7 +69,8 @@
       "Bash(jq:*)",
       "Bash(sort:*)",
       "Bash(uniq:*)",
-      "Bash(bash scripts/claude/tests/run_tests.sh)"
+      "Bash(bash scripts/claude/tests/run_tests.sh)",
+      "Bash(bash scripts/pre-push --check:*)"
     ],
     "ask": [
       "Bash(git commit:*)",
@@ -86,6 +87,17 @@
       "Read(~/.gnupg/**)",
       "Read(~/.aws/**)",
       "Read(./**/.env)",
+      "Read(~/.colima/_lima/_config/user)",
+      "Read(~/.lima/_config/user)",
+      "Read(~/.config/gh/hosts.yml)",
+      "Read(~/.netrc)",
+      "Read(~/.git-credentials)",
+      "Read(~/.kube/config)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.config/gcloud/**)",
+      "Read(./.git/info/identifiers)",
+      "Edit(./.git/info/identifiers)",
+      "Write(./.git/info/identifiers)",
       "Bash(git commit --no-verify:*)",
       "Bash(git commit --no-gpg-sign:*)",
       "Bash(git config commit.gpgsign false:*)",
