@@ -72,6 +72,8 @@ shell은 "공백으로 단어를 자르고, `$`를 치환하고, 스트림(fd)�
 - [[Wargames/Bandit/Level_23]] — cron script injection 디버깅 중 heredoc/CRLF/fd·redirect/`install`을 실전에서 팠다.
 - [[Wargames/Bandit/Level_22]] — `$(whoami)` 명령치환 + `cut -d' ' -f1` 필드 추출.
 - (cross-level) `$`·quote·redirect는 L06 이래 거의 모든 레벨에서 재등장.
+- 관련: [[Concepts/Linux/File_Descriptors_And_Streams]] — §B의 fd 0/1/2·리다이렉션이 **C 층위**에서 무엇인지, 그리고 `|`가 stdout을 터미널에서 떼어내면 버퍼링 모드가 바뀐다는 점
+- 관련: [[Concepts/Linux/C_Input_Functions]] — `< file` 리다이렉션이 `read`의 겉보기 동작을 바꾸는 이유 (tty canonical mode 우회)
 
 ## Expand Later (`/deep` candidates)
 

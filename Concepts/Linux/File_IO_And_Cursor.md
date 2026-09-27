@@ -109,8 +109,10 @@ open("f","rb")            ① 파이썬 내장. 버퍼링·인코딩·객체 래
 - [[Concepts/Binary/Binary_Number_Encoding]] — 읽어들인 바이트를 값으로 바꾸는 단계
 - [[Concepts/Binary/Binary_Format_Forensics]] — 원본 보존 원칙
 - [[Concepts/Linux/File_Signatures]] — 텍스트 모드 손상을 시그니처가 잡도록 설계된 이유
+- [[Concepts/Linux/File_Descriptors_And_Streams]] — §A의 계층도를 **C 층위**에서 다시 본 것. 정수 fd(`read`/`write`)와 `FILE*` 스트림(`fgets`/`fputs`)의 이중성 + `setvbuf` 버퍼링 모드
+- [[Concepts/Linux/C_Input_Functions]] — §B의 커서/`read` 의미론을 C 함수군으로 확장 (NUL 종료, 멈추는 조건)
 
 ## Expand Later (`/deep` candidates)
 - `mmap` — 커널 페이지 캐시를 그대로 주소 공간에 매핑, 큰 파일 임의 접근
 - `O_APPEND`의 원자성 보장 범위와 NFS에서 깨지는 이유
-- 버퍼링 계층(`io.BufferedReader`)과 `flush`/`fsync` — "썼다"가 언제 디스크에 도달하는가
+- 버퍼링 계층과 `flush`/`fsync` — **C 층위(stdio/`setvbuf`)는 2026-09-27 [[Concepts/Linux/File_Descriptors_And_Streams]]로 분리·소비.** **잔여분**: Python `io.BufferedReader`/`BufferedWriter`의 정책과 `fsync` — "썼다"가 언제 디스크에 도달하는가

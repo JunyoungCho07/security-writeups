@@ -160,6 +160,7 @@ Polyglot 파일 — 여러 포맷의 시그니처 제약을 동시 만족시켜 
 - [[Concepts/Linux/Hexdump_Reversal]] (Related — Level 12에서 짝으로 사용)
 - [[Concepts/Linux/Strings_Extraction]] (Related — 둘 다 binary 내용 분석)
 - [[Concepts/Binary/Chunked_Container_Formats]] (Leads_To — 시그니처 뒤에 오는 레코드 구조)
+- [[Concepts/Binary/ELF_Header_Fields]] (Leads_To — ELF의 magic `7f 45 4c 46` **다음**에 오는 고정 위치 필드들: `EI_CLASS`/`e_type`/`e_machine`. 이 노트는 `e_ident[0..3]`까지만 다룬다)
 - [[Concepts/Binary/Binary_Format_Forensics]] (Leads_To — 시그니처는 5개 검증 축 중 1번)
 - [[Concepts/Linux/File_IO_And_Cursor]] (Related — 시그니처가 잡으려는 개행 변환의 실체)
 

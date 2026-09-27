@@ -87,6 +87,7 @@ xxd -r dump.hex > new.bin   # 되돌리기
 - [[Concepts/Binary/Binary_Format_Forensics]] — 도구 역할 분담에서 "돋보기" 자리
 - [[Concepts/Linux/File_Signatures]] — 시그니처 확인
 - [[Concepts/Linux/Strings_Extraction]] — 읽을 수 있는 조각만 뽑는 짝 도구
+- [[Concepts/Binary/ELF_Header_Fields]] — 고정 위치 헤더 필드를 파서 없이 바이트로 판독 (`od -A d -t x1`이 같은 역할)
 
 ## Quick Reference
 

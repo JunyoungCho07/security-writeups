@@ -245,6 +245,8 @@ echo $?
 ### Related Concepts
 - [[Concepts/Linux/Subshell]] (Related — subshell이 parent로 내보내는 단 하나의 channel = exit code)
 - [[Concepts/Linux/Stderr_Redirection]] (Related — stdout/stderr은 exit code의 보완 channel)
+- [[Concepts/Binary/Ret2Win_Pattern]] (Related — exploit 성공/실패 판정에 종료 코드를 쓴다: `exit(1)`=1 vs SIGSEGV=139. 화면 출력만으로는 구분되지 않는 경우가 있다)
+- [[Concepts/Linux/File_Descriptors_And_Streams]] (Related — `exit()`는 열린 스트림을 flush하지만 시그널로 죽으면 하지 않는다 → 크래시 시 마지막 출력이 사라지는 이유)
 - [[Concepts/Linux/Find_Predicates]] (Related — `find`도 exit code로 결과 신호)
 
 ### Cross-Domain

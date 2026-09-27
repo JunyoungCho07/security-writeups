@@ -40,6 +40,12 @@ reapplied_in: [[[Wargames/Bandit/Level_32]]]
 - [[Wargames/Bandit/Level_26]] — `bandit27-do`(env-wrapper setuid) 동작 추론.
 - [[Wargames/Bandit/Level_32]] — `uppershell`이 real uid까지 고정(`setreuid`)했는지 `objdump`로 확인 가능(not stripped). [[Setuid]] 문맥.
 
+## Related
+- [[Concepts/Binary/ELF_Header_Fields]] — §A의 `file` 출력이 **요약해 주는 것의 원본**. 헤더 바이트를 직접 읽어 아키텍처·포인터 크기·PIE 여부를 판정한다
+- [[Tools/nm]] — §C의 `nm`. 심볼 타입 글자(`T`/`t`/`U`)와 stripped 대응
+- [[Tools/objdump]] — §C의 `objdump -d`. LLVM판과 GNU판의 타깃 지원 차이가 실무적으로 중요하다
+- [[Concepts/Binary/Stack_Frame_And_Call_Ret]] — 디스어셈블리를 *읽는* 법 (프레임 좌표계)
+
 ## Expand Later (`/deep` candidates)
-- **`/deep ELF_Format`** — 헤더/프로그램·섹션 헤더, `.text`/`.rodata`/`.symtab`, dynamic linking, PLT/GOT.
-- **`/deep Reversing_Toolchain`** — `objdump`/`readelf`/`nm`/`strings`/`ltrace`/`strace`, gef·pwndbg·radare2.
+- **`/deep ELF_Format`** — ~~헤더~~(2026-09-27 [[Concepts/Binary/ELF_Header_Fields]]로 분리·소비) / **잔여분**: 프로그램·섹션 헤더, `.text`/`.rodata`/`.symtab`, dynamic linking, PLT/GOT.
+- **`/deep Reversing_Toolchain`** — ~~`objdump`/`nm`~~(2026-09-27 [[Tools/objdump]]·[[Tools/nm]] 작성) / **잔여분**: `readelf`(macOS 미설치)·`strings`·`ltrace`/`strace`, gef·pwndbg·radare2.

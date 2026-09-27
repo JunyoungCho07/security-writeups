@@ -42,6 +42,10 @@ A **tty** ("teletypewriter", from the 1960s–70s electromechanical terminals Un
 ## Encountered / Applied In
 - [[Wargames/Bandit/Level_32]] — `$0`이 bandit SSH(pty)에선 `$` 프롬프트를 띄웠지만 비대화형 실행기에선 조용히 종료. [[Process_Creation]](fork/exec/wait) 문맥.
 
+## Related
+- [[Concepts/Linux/File_Descriptors_And_Streams]] — §C의 `isatty`가 **stdio 버퍼링 모드의 기본값**을 정한다 (터미널=line, pipe=full). "파이프로 넘기면 출력이 사라진다"의 정체
+- [[Concepts/Linux/C_Input_Functions]] — canonical mode가 `read`의 겉보기 동작을 바꾼다 — 터미널에선 줄 단위로 멈추는 것처럼 보이지만 그건 `read`의 성질이 아니다
+
 ## Expand Later (`/deep` candidates)
 - **`/deep Termios`** — cooked/raw, `stty`, line discipline, VMIN/VTIME.
 - **`/deep Job_Control`** — 세션/프로세스 그룹, `SIGTTIN`/`SIGTTOU`, fg/bg, controlling terminal.

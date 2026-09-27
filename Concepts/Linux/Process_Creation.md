@@ -49,7 +49,10 @@ A program becomes a running **process** via two syscalls: **`fork`** (duplicate 
 - [[Wargames/Bandit/Level_32]] — `input → uppershell(C, toupper→system) → sh → syscall → kernel`; `$0`이 sh로 확장돼 자식 셸 재기동. [[Setuid]](권한 전파) · [[Restricted_Shell_Escape]].
 - 관련: [[Concepts/Linux/File_IO_And_Cursor]] — `os.fork`/`os.execve`가 곧 시스템콜 래퍼라는 점, fd 상속
 - 관련 도구: [[Tools/colima]] — 컨테이너 = namespace/cgroup 로 격리된 프로세스, 그 커널을 VM 이 공급한다
+- 관련: [[Concepts/Linux/File_Descriptors_And_Streams]] — §D의 "libc wrapper" 층이 실제로 무엇을 하는가 (버퍼링). syscall(`read`)과 libc 스트림(`fgets`)의 구분
+- 관련: [[Concepts/Binary/Stack_Frame_And_Call_Ret]] — §A의 "바이너리 → 프로세스" 이후, 그 프로세스 **안**의 스택 구조와 호출 규약
+- 관련: [[Concepts/Binary/ELF_Header_Fields]] — §A에서 로더가 읽는 그 헤더
 
 ## Expand Later (`/deep` candidates)
 - **`/deep Fork_Exec_Model`** — CoW fork, fd 상속/close-on-exec, `posix_spawn`, zombie/orphan, `wait` 상태코드.
-- **`/deep Syscall_ABI`** — 아키텍처별 호출규약, `strace`, vDSO, libc wrapper.
+- **`/deep Syscall_ABI`** — 아키텍처별 호출규약(**인수 레지스터 `rdi/rsi/rdx/rcx/r8/r9`는 2026-09-27 [[Concepts/Binary/Stack_Frame_And_Call_Ret]]에 부분 기록**), `strace`, vDSO, libc wrapper.
