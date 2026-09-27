@@ -63,11 +63,26 @@ no self-description; the specification supplies all three.
 - 따옴표를 씌우면 **타입이 바뀐다** — `int == str`은 에러 없이 그냥 `False`. (부등호는 `TypeError`를 내지만 `==`만 관대하다.)
 - `f"{v:#010x}"` — `#`=`0x` 접두, `0`=0으로 채움, `10`=전체 폭. 4바이트 값이 항상 같은 폭으로 나와 **세로 대조가 가능**해진다.
 
+### G. ⭐ 주소를 payload에 심기 — 그리고 "텍스트 ≠ 바이트"의 전선(wire) 버전
+- 8바이트 주소: `struct.pack('<Q', addr)` 또는 `addr.to_bytes(8, 'little')`. `<`=little endian, `Q`=unsigned long long(8바이트). 포인터 크기는 **ELF의 `EI_CLASS`가 정한다** (64bit→`Q`, 32bit→`I`) — 추측 금지. → [[Concepts/Binary/ELF_Header_Fields]]
+- ⚠️ **`I`(4바이트)는 조용히 통과한다.** `B`/`H`는 범위 초과로 `struct.error`가 나서 Python이 잡아주지만, 주소값이 4바이트에 들어가면 `I`도 성공하고 **결과만 4바이트 짧아진다.** 길이 확인(`wc -c`)이 유일한 방어다. §E의 "길이 불일치는 에러"가 여기서는 성립하지 않는다.
+- ⭐ **§F의 혼동에는 전선 버전이 있다.** 소스의 `0xcbf43926`이 16진수 *텍스트*가 아니었던 것과 대칭으로 — **터미널/`nc`에 `0x96`을 타이핑하면 바이트 `0x96`이 아니라 ASCII 4바이트가 간다.**
+  ```
+  printf '0x96' | od -A d -t x1     →  30 78 39 36        (4바이트)
+  echo   '0x96' | od -A d -t x1     →  30 78 39 36 0a     (Enter 가 0a 를 추가)
+  python3 -c 'import sys;sys.stdout.buffer.write(bytes([0x96]))'  →  96   (1바이트)
+  ```
+- 그래서 `0x00`처럼 **누를 키가 없는 바이트**를 포함한 바이트열은 **키보드로 만들 수 없다.** 프로그램이 만들어 파일이나 파이프로 흘려보내야 한다. `sys.stdout.buffer`를 쓰는 이유도 같다 — `sys.stdout`은 텍스트 스트림이라 임의 바이트를 통과시키지 못한다.
+
 ## Encountered / Applied In
 - External: local-only wargame tree (no-publish) — 컨테이너 포맷 필드 파싱
+- External: local-only wargame tree (no-publish) — 8바이트 함수 주소를 리틀엔디안으로 패킹해 입력 버퍼에 심는 작업(§G)
 
 ## Related
 - [[Concepts/Binary/Twos_Complement]] — signed 해석의 실체
+- [[Concepts/Binary/ELF_Header_Fields]] — `EI_CLASS`/`EI_DATA`가 포인터 크기와 바이트 순서를 선언한다. §G의 전제
+- [[Concepts/Binary/Ret2Win_Pattern]] — §G의 패킹이 실제로 쓰이는 곳
+- [[Concepts/Linux/C_Input_Functions]] — 어떤 입력 함수가 `0x00`을 통과시키는가 (§G의 실행 가능성)
 - [[Concepts/Binary/Chunked_Container_Formats]] — 이 규칙들이 적용되는 대상
 - [[Tools/xxd]] — 바이트를 눈으로 보는 도구
 - [[Concepts/Linux/File_IO_And_Cursor]] — 이 바이트를 파일에서 안전하게 꺼내오는 단계
