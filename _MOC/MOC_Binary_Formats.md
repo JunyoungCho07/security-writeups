@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Binary_Formats
-last_updated: 2026-08-30
+last_updated: 2026-09-27
 tags: [moc, binary, file-format, forensics, integrity]
 ---
 
@@ -110,4 +110,8 @@ graph TD
 
 - **선행**: External: `_MOC/MOC_Bandit` (L04 file / L09 strings / L12 압축 중첩에서 씨앗)
 - **적용처**: External: 로컬 전용 워게임 트리 (no-publish)
+- **자매 스코프**: External: `_MOC/MOC_Binary_Exploitation` (2026-09-27 신설) — 프로세스의
+  스택/제어흐름 계열. 이 스코프와는 `Binary_Number_Encoding` 을 공유 전제로만 접한다.
+  그쪽 노트는 이 MOC 의 **다섯 축 어디에도 대응하지 않아** Update Protocol 3단계를 충족할 수
+  없으므로 분리했다 (스택 프레임·명령어 의미론은 '선언 vs 실측'의 대상이 아니다).
 - **다음 방향**: External: `Roadmap_Post_Bandit`
