@@ -48,6 +48,26 @@ objdump --version        # 반드시 먼저
 > `x86_64-linux-gnu-objdump`. (같은 이유로 그 컨테이너의 `gdb`도 `gdb-multiarch`가 필요하다.)
 
 `--version`의 `Registered Targets:` 목록에 `x86-64`가 있는지가 유일한 판정 기준이다.
+GNU판은 `objdump --info` 가 지원 타깃을 나열한다 (arm64 Debian → `aarch64` 만).
+
+### ⭐ 이 제약은 `objdump` 하나가 아니라 **BFD 도구 전체**에 걸린다 (2026-09-28 추가)
+
+`objdump` · `objcopy` · `nm` · `strip` 은 모두 **BFD** 라이브러리를 거치므로 같은 게이트를
+공유한다. **`readelf` 만 예외**다 — BFD를 쓰지 않는 독립 ELF 파서다.
+
+같은 x86-64 오브젝트를 arm64 컨테이너에서 측정:
+
+| 도구 | 결과 |
+|---|---|
+| `readelf -h` | ✅ `Machine: Advanced Micro Devices X86-64` |
+| `readelf -d` | ✅ `FLAGS  BIND_NOW` 까지 디코드 |
+| `objdump -d` | ❌ `can't disassemble for architecture UNKNOWN!` |
+| `objcopy -j .text` | ❌ `Unable to recognise the format of the input file` |
+
+**규칙: 구조 파서(`readelf`)는 아키텍처 독립, BFD 도구는 아니다.**
+⚠️ `readelf` 가 되는 것을 보고 `objcopy` 도 되리라 일반화하면 막힌다 — 실제로 한 번 막혔다.
+그리고 **macOS 에는 `objcopy` 도 `readelf` 도 없다** (Xcode CLT는 `strip` 만 제공).
+→ [[Concepts/Binary/ELF_Sections_And_Relocation]] §D·§E 에 우회 방법.
 
 ---
 
