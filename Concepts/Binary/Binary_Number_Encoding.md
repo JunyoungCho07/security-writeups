@@ -73,6 +73,14 @@ no self-description; the specification supplies all three.
   python3 -c 'import sys;sys.stdout.buffer.write(bytes([0x96]))'  →  96   (1바이트)
   ```
 - 그래서 `0x00`처럼 **누를 키가 없는 바이트**를 포함한 바이트열은 **키보드로 만들 수 없다.** 프로그램이 만들어 파일이나 파이프로 흘려보내야 한다. `sys.stdout.buffer`를 쓰는 이유도 같다 — `sys.stdout`은 텍스트 스트림이라 임의 바이트를 통과시키지 못한다.
+- 예외: **쉘 `printf`는 `\xHH`로 생바이트를 만든다** — `printf '\x41\x42\x00\x0a'` → `41 42 00 0a`. 간단한 payload는 Python 없이도 된다 (주소 계산·유출값 수신이 필요해지면 Python이 낫다).
+
+### H. ⭐ 16진 **문자열** ↔ 바이트, 그리고 자주 물리는 세 함정 (2026-09-28)
+- `bytes.fromhex(s)` — 16진 문자열 → 바이트. **공백·개행을 무시하므로** 도구 출력을 그대로 붙여도 된다 (`objdump -s -j .text` 출력 복사 등). 역방향은 `b.hex()` / `b.hex(' ')`.
+- ⚠️ **`fromhex` 는 순서를 바꾸지 않는다.** `bytes.fromhex('7ffd6e2f7c70')` → `7f fd 6e 2f 7c 70` — **빅엔디안 6바이트**다. 주소를 심으려면 `struct.pack('<Q', int(s,16))`(= pwntools `p64`)이어야 한다. 길이도 8이 아니라 6이 되어 payload가 **조용히 짧아진다** → §G의 `wc -c`/`assert` 검산이 여기서도 유일한 방어.
+- ⚠️ **`str(bytes)` 는 문자열 변환이 아니다.** `str(b'0x7ffd')` → `"b'0x7ffd'"` — `b`와 따옴표가 **글자로** 들어간다. bytes→문자열은 `.decode()`. (다만 `int()` 는 bytes를 직접 받으므로 `int(b'0x7ffd', 16)` 은 그냥 된다.)
+- ⚠️ **고정 인덱스 슬라이싱은 길이가 바뀌면 깨진다.** 유출된 주소의 16진 자릿수는 환경마다 다르다 (`0x7ffd…` 12자리 vs 에뮬레이션 `0x40…` 10자리). `.split()` 으로 토큰을 꺼내라.
+- ⭐ **문자열을 정수 즉치값에 담는 것도 같은 규칙이다.** `"/bin/sh"`를 8바이트 값으로 쓰면 `0x68732f6e69622f` — 리틀엔디안으로 메모리에 놓이면 `2f 62 69 6e 2f 73 68 00` = 글자 순서 그대로 + 끝 NUL. → [[Concepts/Binary/Shellcode]] §C
 
 ## Encountered / Applied In
 - External: local-only wargame tree (no-publish) — 컨테이너 포맷 필드 파싱
@@ -82,6 +90,8 @@ no self-description; the specification supplies all three.
 - [[Concepts/Binary/Twos_Complement]] — signed 해석의 실체
 - [[Concepts/Binary/ELF_Header_Fields]] — `EI_CLASS`/`EI_DATA`가 포인터 크기와 바이트 순서를 선언한다. §G의 전제
 - [[Concepts/Binary/Ret2Win_Pattern]] — §G의 패킹이 실제로 쓰이는 곳
+- [[Concepts/Binary/Shellcode]] — §H의 문자열↔즉치값 패킹이 쓰이는 곳
+- [[Tools/pwntools]] — `p64`/`u64` 가 §G의 `struct.pack('<Q')` 을 감싼 것
 - [[Concepts/Linux/C_Input_Functions]] — 어떤 입력 함수가 `0x00`을 통과시키는가 (§G의 실행 가능성)
 - [[Concepts/Binary/Chunked_Container_Formats]] — 이 규칙들이 적용되는 대상
 - [[Tools/xxd]] — 바이트를 눈으로 보는 도구

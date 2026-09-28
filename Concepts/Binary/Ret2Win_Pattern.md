@@ -77,6 +77,42 @@ loader, or the CPU treats it specially. Common variants: `flag`, `get_flag`, `pr
 > 배운 ①~④ 체인은 아래쪽 전부의 **골격**이다. "BOF = win으로 점프"로 외우면 두 번째
 > 문제에서 막힌다.
 
+### ⭐ ret2win → ret2shellcode: 달라지는 것은 ④ 하나뿐 (2026-09-28 추가)
+
+두 패턴을 나란히 두면 체인 분해가 왜 필요했는지가 드러난다:
+
+| 링크 | ret2win | ret2shellcode |
+|---|---|---|
+| ① 메모리 쓰기 | 입력 한도 > 버퍼 | **같다** |
+| ② `ret` 도달 | canary 없음 | **같다** |
+| ③ RIP 로드 | `ret` | **같다** |
+| ④ **목적지 실행** | `.text` 의 **기존** 코드 (`r-x`, 주소 고정) | **내가 방금 쓴 스택 바이트** |
+
+④ 하나가 바뀌면서 **새 전제 두 개**가 붙는다:
+
+1. **스택에 `x` 권한이 있어야 한다** — NX 꺼짐. `objdump -p` 의 `STACK` flags 가 `rwx`
+2. **스택 주소를 알아야 한다** — ⚠️ **No PIE 여도 스택은 매 실행 움직인다.** `e_type` 은
+   실행 파일 본체만 고정하고 스택에 대해 아무 말도 하지 않는다. 주소 유출이나 NOP sled가
+   필요해지는 지점이 여기다
+
+→ [[Concepts/Binary/Memory_Protections]] §C·§G, [[Concepts/Binary/Shellcode]]
+
+**NOP sled 와 패딩은 다른 일을 한다** — 자주 혼동된다:
+
+| | 목적 | 실행되나 |
+|---|---|---|
+| **패딩** | 쓰기 커서를 복귀 주소 칸까지 **밀어내기** | 아니다 |
+| **NOP sled** (`0x90`) | **착지 지점의 오차**를 흡수 | 그렇다 — 미끄러져 내려간다 |
+
+sled는 **점프 목적지의 오차**만 흡수하고 **쓰기 위치의 오차**는 흡수하지 못한다. 그래서
+sled를 깔아도 오프셋 측정은 여전히 정확해야 한다. 그리고 sled가 shellcode **뒤**에 있으면
+실행이 그쪽으로 가지 않으므로 sled가 아니라 그냥 채움이다.
+
+**shellcode 배치 시 감당할 것:** `push` 는 `rsp` 보다 **낮은** 주소에 쓴다. `ret` 직후
+`rsp` 는 복귀 주소 칸 **바로 위**(= payload 전체보다 높은 주소)에 있으므로, shellcode를
+버퍼 앞쪽에 두면 `push` 가 내려와 닿기까지 여유가 크다. 복귀 주소 칸 뒤에 두면 여유가
+거의 없어 `push`/`call` 이 자기 몸을 덮을 수 있다.
+
 ### payload의 물리적 형태
 
 ```
@@ -120,6 +156,10 @@ loader, or the CPU treats it specially. Common variants: `flag`, `get_flag`, `pr
 - [[Concepts/Linux/C_Input_Functions]] — ①이 가능한지, payload에 `0x00`을 넣을 수 있는지.
 - [[Concepts/Linux/Exit_Code]] — 성공 판정에 쓰는 종료 코드.
 - [[Tools/nm]] — 목적지 주소를 얻는 도구 (호출되지 않는 함수는 심볼 테이블에만 있다).
+- [[Concepts/Binary/Shellcode]] — ④의 목적지를 **직접 만들어 넣는** 변종(ret2shellcode).
+- [[Concepts/Binary/Memory_Protections]] — 네 방어 기제가 각각 어느 링크를 끊는지, 그리고
+  각각을 ELF의 어느 구조에서 읽는지.
+- [[Tools/pwntools]] — payload 조립·전송을 대신하는 도구 (손으로 한 뒤에 쓴다).
 
 ## Encountered / Applied In
 
