@@ -114,6 +114,10 @@ libmagic(`file`)보다 공격면이 작다 — libmagic에는 CVE 이력이 있�
 - [[Concepts/Binary/Binary_Number_Encoding]] — 2/8바이트 정수와 엔디안. 헤더 판독의 전제.
 - [[Concepts/Binary/Stack_Frame_And_Call_Ret]] — `e_machine`이 어느 프레임 규약인지 정한다.
 - [[Concepts/Binary/Ret2Win_Pattern]] — `e_type`이 공격 난이도(주소를 미리 박을 수 있나)를 정한다.
+- [[Concepts/Binary/ELF_Sections_And_Relocation]] — 이 노트의 **다음 층**: 헤더가 가리키는
+  두 표(섹션/프로그램 헤더)와 relocation. 위 Expand Later 를 소비한 노트.
+- [[Concepts/Binary/Memory_Protections]] — `e_type` 이 네 방어 기제 중 **PIE 하나**를 말해준다.
+  나머지 셋은 다른 구조에 있다.
 - [[Tools/objdump]] · [[Tools/nm]] · [[Tools/xxd]] — 판독 도구.
 
 ## Encountered / Applied In
@@ -124,9 +128,11 @@ libmagic(`file`)보다 공격면이 작다 — libmagic에는 CVE 이력이 있�
 
 ## Expand Later (`/deep` candidates)
 
-- **`/deep ELF_Format`의 잔여분** — program header(`PT_LOAD`, `PT_GNU_STACK`, `PT_GNU_RELRO`),
-  section header(`.text`/`.rodata`/`.symtab`/`.bss`), 둘의 차이(로더는 program header만 본다).
-- **ELF에서 방어 기제를 판독하기** — NX는 `PT_GNU_STACK`의 플래그, RELRO는 `PT_GNU_RELRO` +
-  `BIND_NOW`, canary는 `__stack_chk_fail` 심볼. `checksec`이 요약해 주는 네 줄의 출처.
+- ~~**`/deep ELF_Format`의 잔여분** — program header, section header, 둘의 차이~~
+  → **2026-09-28 소비됨**: [[Concepts/Binary/ELF_Sections_And_Relocation]] (+ relocation 추가)
+- ~~**ELF에서 방어 기제를 판독하기** — NX/RELRO/canary/PIE 가 각각 어느 구조에 있나~~
+  → **2026-09-28 소비됨**: [[Concepts/Binary/Memory_Protections]]
 - **Dynamic linking / PLT·GOT** — `U` 심볼이 실행 중 해소되는 경로, lazy binding.
+  (GOT 의 존재 이유와 RELRO 3단계는 `Memory_Protections` §E 에 있고, PLT 스텁의 기계어
+  수준 동작은 미작성.)
 - ELF vs Mach-O vs PE 헤더 대조 — 같은 정보를 어디에 어떻게 두는가.

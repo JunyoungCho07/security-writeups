@@ -153,6 +153,10 @@ arm64 호스트에서 컴파일해 재면 다른 답이 나오거나 재지지 �
 - [[Concepts/Linux/Process_Creation]] — 프로세스 메모리 구획(text/data/heap/stack)의 상위 맥락.
 - [[Tools/objdump]] — 프레임 좌표를 읽는 도구. `--x86-asm-syntax=intel` 필수.
 - [[Tools/nm]] — 함수 이름 → 주소.
+- [[Concepts/Binary/Syscall_Convention]] — **대조**: `syscall` 은 인자 4번째가 `rcx` 가 아니라
+  `r10` 이고 `rcx`/`r11` 이 파괴된다. 함수 호출 규약과 혼동하면 안 된다.
+- [[Concepts/Binary/Memory_Protections]] — canary 가 이 프레임의 어디에 놓이며 왜 오버플로가
+  반드시 그것을 지나가는지.
 
 ## Encountered / Applied In
 

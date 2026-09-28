@@ -140,6 +140,10 @@ void f(char *p) { sizeof(p); }   // 8 — 포인터 크기. 배열 크기를 알
 - [[Concepts/Binary/Binary_Number_Encoding]] — 왜 주소에 `0x00`이 섞이는가.
 - [[Concepts/Linux/Shell_Fundamentals]] — `< file` 리다이렉션으로 stdin을 교체하는 것이
   §C의 pipe 경로를 만든다.
+- [[Concepts/Binary/Shellcode]] — 어떤 입력 함수를 통과하느냐가 shellcode의 **인코딩 제약**을
+  정한다 (`read` → NUL 자유, `strcpy` → NUL 금지).
+- ⚠️ payload 를 `< file` 로 흘려보내면 shell 이 떠도 **stdin 이 EOF** 라 즉시 죽는다.
+  `(cat payload; cat) | prog` 로 stdin 을 열어 둬야 한다.
 
 ## Encountered / Applied In
 

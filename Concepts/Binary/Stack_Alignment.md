@@ -110,6 +110,10 @@ attribute가 **없는** 경우, 정렬을 스스로 맞춘다: 목적지 주소 
 - [[Concepts/Binary/Ret2Win_Pattern]] — `ret`으로 함수에 진입하는 기법. 이 노트가 그
   부작용을 설명한다.
 - [[Tools/objdump]] — attribute의 흔적(프롤로그의 `and rsp, -0x10` 류)을 확인.
+- [[Concepts/Binary/Shellcode]] — **대조**: 직접 주입한 코드가 `syscall` 만 쓰고 libc 함수를
+  부르지 않으면 `movaps` 를 만나지 않으므로 이 정렬 문제가 발생하지 않는다. 정렬이 문제가
+  되는 것은 **libc 진입** 때문이지 `ret` 진입 자체 때문이 아니다.
+- [[Concepts/Binary/Syscall_Convention]] — 커널 진입 경로는 정렬을 요구하지 않는다.
 
 ## Encountered / Applied In
 
