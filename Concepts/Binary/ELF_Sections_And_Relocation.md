@@ -123,16 +123,77 @@ objdump --info → aarch64 만                                  ← 원인
 `gcc -Os` 는 `main` 을 `.text` 가 아니라 **`.text.startup`** 에 넣는다. `-j .text` 로
 뽑으면 0바이트가 나온다. **추출 전에 `objdump -h` 로 섹션 목록을 먼저 확인해라.**
 
+### G. ⭐ 파일 오프셋 ≠ 가상 주소 — `PT_LOAD` 변환 (2026-09-29 추가)
+
+§A 의 두 표가 **실제로 다른 숫자를 말한다**는 것이 여기서 드러난다. program header 의
+`LOAD` 항목은 두 값을 **따로** 적는다:
+
+```
+LOAD off 0x00021a40  vaddr 0x00022a40  filesz 0x…  memsz 0x…
+         ↑ 파일 안 위치      ↑ 적재될 주소     ← 같을 의무가 없다
+```
+
+변환식 — 그 오프셋을 **포함하는** `LOAD` 를 먼저 찾아야 한다 (`off ≤ x < off + filesz`):
+
+```
+vaddr = x − seg.off + seg.vaddr
+```
+
+### 어느 도구의 값이 이미 가상 주소인가
+
+| 값의 출처 | 좌표계 | 변환 필요? |
+|---|---|---|
+| 심볼표 `st_value` (`nm`, `readelf -s`) | **가상 주소** | ❌ |
+| `objdump -d` 의 왼쪽 주소 | **가상 주소** | ❌ |
+| **`strings -t x`** | **파일 오프셋** | ✅ |
+| `readelf -S` 의 `Offset` 칸 | **파일 오프셋** | ✅ |
+
+⭐ **`nm` 과 `strings` 가 같은 파일에 대해 다른 좌표계로 답한다.** 함수 주소는 그대로 쓰고
+문자열 주소는 변환해야 하는 이유가 이것이고, 섞어 쓰면 정확히 세그먼트 차이만큼 틀린다.
+
+### 측정 — 통설이 통하는 것은 우연이다
+
+실제 `libc.so.6` 의 `LOAD` 4개를 대조한 결과:
+
+| 세그먼트 | `off` vs `vaddr` |
+|---|---|
+| `r--` (첫 번째) | **같다** |
+| `r-x` (코드) | **같다** |
+| `r--` (`.rodata`) | **같다** ← 문자열이 사는 곳 |
+| `rw-` (데이터) | **정확히 `0x1000` 어긋난다** |
+
+→ "libc 는 `strings` 오프셋 그대로 쓰면 된다"가 실무에서 통하는 이유는 **문자열이 세 번째
+세그먼트에 살기 때문**이고, 규칙이 아니라 배치의 우연이다. 같은 파일 안에 반례가 있다.
+
+링커가 보장하는 것은 `vaddr ≡ off (mod pagesize)` 뿐이다 — **완전히 같을 의무는 없다.**
+`PT_LOAD` 정렬(`align 2**12`)이 요구하는 것은 그 합동뿐이다.
+
+💡 실무: `ELF().search(b'…')` 가 이 변환을 해서 **vaddr** 를 돌려준다. 손으로 한 번 해보고
+두 값을 대조한 뒤 도구로 넘기면 된다 → [[Tools/pwntools]]
+
+## Related
+
+- [[Concepts/Binary/ELF_Header_Fields]] — 이 노트의 **앞 층**. 헤더가 두 표를 가리킨다.
+- [[Concepts/Binary/Memory_Protections]] — program header 에만 있는 런타임 권한 정보.
+- [[Concepts/Binary/Ret2Libc_Pattern]] — §G 변환이 실제로 필요해지는 곳.
+- [[Concepts/Binary/Shellcode]] — relocation 0 기준의 근거 (§C).
+- [[Tools/strings]] — §G 의 **파일 오프셋**을 만들어내는 도구. 변환 전 좌표계.
+- [[Tools/objdump]] — `-h`(섹션) / `-p`(세그먼트) / `-s`(내용) / `-r`(relocation).
+
 ## Encountered / Applied In
 
 - External: local-only wargame tree (no-publish) — 손으로 쓴 어셈블리를 주입 가능한 생바이트로
   만들기 위해. libc를 부르는 C 버전과 freestanding 버전의 relocation 개수를 대조해
   "shellcode = relocation 0개" 라는 기준을 확인했다.
+- External: local-only wargame tree (no-publish) — 공유 라이브러리 안 문자열의 **적재 주소**가
+  필요해서 §G 의 변환을 손으로 수행. `strings` 의 오프셋과 심볼표의 주소가 서로 다른 좌표계라는
+  것을 여기서 확인했다. → [[Concepts/Binary/Ret2Libc_Pattern]]
 
 ## Expand Later (`/deep` candidates)
 
 - **PLT / GOT 와 lazy binding** — `U` 심볼이 실행 중 해소되는 경로
 - relocation 타입 전체 (`R_X86_64_64`, `GOTPCREL`, `TPOFF` …) 와 각각이 채우는 값
-- `PT_LOAD` 세그먼트와 섹션의 대응 — 로더는 섹션을 보지 않는다
+- ~~`PT_LOAD` 세그먼트와 섹션의 대응 — 로더는 섹션을 보지 않는다~~
+  → **2026-09-29 부분 소비됨**: §G (오프셋↔주소 변환). 섹션↔세그먼트 **귀속** 관계(어느 섹션이 어느 세그먼트에 들어가나)는 아직 미작성.
 - `.init_array` / `.fini_array` — main 전후에 실행되는 함수 포인터 배열
 - ELF vs Mach-O vs PE 섹션 모델 대조

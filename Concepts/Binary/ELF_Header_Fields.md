@@ -105,6 +105,22 @@ objdump -f ./binary              # 교차 검증
 ⭐ `od`/`xxd`는 hexdump일 뿐 **포맷 파서가 아니다.** 정체불명 파일을 호스트에서 만질 때
 libmagic(`file`)보다 공격면이 작다 — libmagic에는 CVE 이력이 있다.
 
+### F. ⭐ `e_type` 은 심볼 주소의 **의미**까지 정한다 (2026-09-29 추가)
+
+§B 가 "주소를 미리 박을 수 있나"를 정한다면, 같은 필드가 **심볼표 값을 어떻게 읽어야 하나**도
+정한다:
+
+| `e_type` | 심볼표 `st_value` 의 의미 | 쓸 때 |
+|---|---|---|
+| `ET_EXEC` (2) | **절대 가상 주소** | 그대로 payload 에 넣는다 |
+| `ET_DYN` (3) | **적재 base 로부터의 오프셋** | `base + st_value` |
+
+⭐ 그래서 **하나의 payload 안에 두 종류의 주소가 섞인다** — No PIE 실행 파일의 가젯 주소는
+그대로, 공유 라이브러리(`ET_DYN`)의 함수 주소는 base 를 더해서. 같은 `nm` 출력 형식인데
+전처리가 다르다는 것이 초보가 가장 자주 틀리는 지점이다.
+
+→ [[Concepts/Binary/Ret2Libc_Pattern]] §D, [[Tools/nm]] Pitfalls 2
+
 ## Related
 
 - [[Concepts/Linux/Static_Binary_Triage]] — `file`/`strings`/`nm` 수준의 정찰. 이 노트는 그
@@ -114,6 +130,7 @@ libmagic(`file`)보다 공격면이 작다 — libmagic에는 CVE 이력이 있�
 - [[Concepts/Binary/Binary_Number_Encoding]] — 2/8바이트 정수와 엔디안. 헤더 판독의 전제.
 - [[Concepts/Binary/Stack_Frame_And_Call_Ret]] — `e_machine`이 어느 프레임 규약인지 정한다.
 - [[Concepts/Binary/Ret2Win_Pattern]] — `e_type`이 공격 난이도(주소를 미리 박을 수 있나)를 정한다.
+- [[Concepts/Binary/Ret2Libc_Pattern]] — `e_type` 이 `st_value` 의 의미를 정한다(§F). 한 payload 에 절대 주소와 base 상대 오프셋이 함께 들어가는 이유.
 - [[Concepts/Binary/ELF_Sections_And_Relocation]] — 이 노트의 **다음 층**: 헤더가 가리키는
   두 표(섹션/프로그램 헤더)와 relocation. 위 Expand Later 를 소비한 노트.
 - [[Concepts/Binary/Memory_Protections]] — `e_type` 이 네 방어 기제 중 **PIE 하나**를 말해준다.
