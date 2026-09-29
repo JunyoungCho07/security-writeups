@@ -113,6 +113,35 @@ sled를 깔아도 오프셋 측정은 여전히 정확해야 한다. 그리고 s
 버퍼 앞쪽에 두면 `push` 가 내려와 닿기까지 여유가 크다. 복귀 주소 칸 뒤에 두면 여유가
 거의 없어 `push`/`call` 이 자기 몸을 덮을 수 있다.
 
+### ⭐ ret2shellcode → ret2libc: **또 ④ 하나** (2026-09-29 추가)
+
+세 패턴을 한 표에 두면 프레임의 값이 확정된다 — ①②③은 세 번 연속 **같다.**
+
+| 링크 | ret2win | ret2shellcode | ret2libc |
+|---|---|---|---|
+| ① 메모리 쓰기 | 입력 한도 > 버퍼 | **같다** | **같다** |
+| ② `ret` 도달 | canary 없음 | **같다** | **같다** |
+| ③ RIP 로드 | `ret` | **같다** | **같다** |
+| ④ **목적지 실행** | `.text` 의 선물 함수 | 내가 쓴 **스택 바이트** | **libc 안의 기존 함수** |
+
+④ 가 libc 로 옮겨가면서 전제가 **교체**된다:
+
+| | ret2shellcode | ret2libc |
+|---|---|---|
+| NX | **꺼져 있어야** 한다 | **켜져 있어도 된다** (실행 안 하고 호출한다) |
+| 알아야 하는 주소 | **스택** 주소 | **libc base** |
+| 주소를 얻는 법 | 버퍼 주소 유출 / NOP sled | libc 주소 하나 유출 → 역산 |
+| 인자 전달 | 불필요 (직접 쓴다) | **가젯 필요** (`pop rdi`) |
+
+⭐ **NX 가 켜지면 ④의 목적지가 "내가 만든 것"에서 "이미 있는 것"으로 강제 이동한다.** 그리고
+목적지가 함수 하나에서 **가젯의 순열**로 확장되는 것이 ROP 다.
+
+→ [[Concepts/Binary/Ret2Libc_Pattern]], [[Concepts/Binary/ROP]]
+
+**새로 생기는 링크가 하나 있다 — ⓪ 주소 확보.** ret2win 은 없었고, ret2shellcode 는 버퍼
+주소, ret2libc 는 libc base. 실전 문제의 난이도는 대체로 **④가 아니라 ⓪** 에 있다 (leak 이
+공짜로 주어지는가, 2단계 체인으로 스스로 만들어야 하는가).
+
 ### payload의 물리적 형태
 
 ```
@@ -160,6 +189,8 @@ sled를 깔아도 오프셋 측정은 여전히 정확해야 한다. 그리고 s
 - [[Concepts/Binary/Memory_Protections]] — 네 방어 기제가 각각 어느 링크를 끊는지, 그리고
   각각을 ELF의 어느 구조에서 읽는지.
 - [[Tools/pwntools]] — payload 조립·전송을 대신하는 도구 (손으로 한 뒤에 쓴다).
+- [[Concepts/Binary/ROP]] — ④가 한 지점이 아니라 **가젯의 순열**로 확장된 일반형.
+- [[Concepts/Binary/Ret2Libc_Pattern]] — NX 가 켜졌을 때 ④가 가는 곳.
 
 ## Encountered / Applied In
 
@@ -169,10 +200,15 @@ sled를 깔아도 오프셋 측정은 여전히 정확해야 한다. 그리고 s
 
 ## Expand Later (`/deep` candidates)
 
-- **ROP 전체 원자화** — gadget의 정의, `ret`로 끝나는 조각 연쇄, 스택을 "프로그램"으로
-  쓰는 관점, `pop rdi; ret`으로 인수를 세팅하는 방법.
-- **ret2libc** — libc base leak, `system("/bin/sh")`, one-gadget의 개념(도구는 쓰지 않되
-  원리는 알아야 한다).
+- ~~**ROP 전체 원자화** — gadget의 정의, `ret`로 끝나는 조각 연쇄, 스택을 "프로그램"으로
+  쓰는 관점, `pop rdi; ret`으로 인수를 세팅하는 방법.~~
+  → **2026-09-29 소비됨**: [[Concepts/Binary/ROP]]
+- ~~**ret2libc** — libc base leak, `system("/bin/sh")`, one-gadget의 개념(도구는 쓰지 않되
+  원리는 알아야 한다).~~
+  → **2026-09-29 소비됨**: [[Concepts/Binary/Ret2Libc_Pattern]] (one_gadget 은 그쪽 Expand
+  Later 로 이월).
+- **⓪ 주소 확보(leak) 자체의 원자화** — ret2plt 2단계 leak, format string leak, partial
+  overwrite. 위 §"또 ④ 하나"에서 **링크 ⓪**로 분리해 둔 것.
 - **Stack canary 우회** — 부분 덮어쓰기, brute force(fork 서버), leak, 그리고 canary가
   `[rbp+0]` 아래에 있다는 좌표적 사실.
 - **PIE 우회** — 부분 덮어쓰기(하위 1.5바이트는 base와 무관), leak을 통한 base 복원.

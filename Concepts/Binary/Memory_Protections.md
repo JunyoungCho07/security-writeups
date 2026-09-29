@@ -94,6 +94,16 @@ NX가 꺼져 있으면 성립하는 공격: 버퍼에 **기계어를 써 넣고*
 측정: `-fno-stack-protector` → 심볼 없음 / `-fstack-protector-all` →
 `U __stack_chk_fail@GLIBC_2.4`. 교차검증은 `objdump -d` 에서 `fs:0x28`.
 
+> [!warning] ⭐ [Nullity] "없음"을 증거로 쓰려면 먼저 그 방법이 "있음"을 보여줄 수 있는지
+> 확인해라 (2026-09-29)
+> 실제로 물린 사례: `nm` 에 **undefined 를 숨기는 플래그**를 쓴 채 목록을 훑고
+> "`__stack_chk_fail` 없음 → canary 없음"이라고 결론냈다. 그 출력에는 `U` 로 시작하는 줄이
+> **하나도** 없었다 — 동적 링크 바이너리가 `puts`/`read` 를 부르는데 그럴 수가 없다.
+>
+> **판별:** 반드시 보여야 하는 다른 `U` 심볼(호출하는 libc 함수)이 출력에 있는지 먼저 본다.
+> 없으면 목록 자체가 `U` 를 안 보여주는 것이고, canary 판정은 **무효**다. 결론이 우연히 맞아도
+> 증거는 깨져 있다. → [[Tools/nm]]
+
 ### E. RELRO — 함수 포인터 표를 읽기 전용으로
 
 **GOT(Global Offset Table)** 는 함수 포인터 배열이다. libc 함수의 주소는 실행 시에
@@ -114,6 +124,22 @@ NX가 꺼져 있으면 성립하는 공격: 버퍼에 **기계어를 써 넣고*
 | **No RELRO** | 없음 | — | 전부 쓰기 가능 |
 | **Partial** | 있음 | 없음 | `.got.plt`(함수 포인터)는 **계속 쓰기 가능** |
 | **Full** | 있음 | 있음 | 시작 시 전부 해소 후 잠금 → GOT overwrite 사망 |
+
+**측정 판독 (2026-09-29)** — No RELRO 는 **증거 두 개가 각각 없어야** 확정된다:
+
+| 확인 | No RELRO 인 실행 파일 | 같은 시스템의 `libc.so.6` |
+|---|---|---|
+| program header 에 `RELRO` 항목 | **없음** | **있음** |
+| dynamic section 에 `FLAGS` / `BIND_NOW` | **없음** | (있음) |
+| 판정 | **No RELRO** | 최소 Partial |
+
+⭐ **같은 판독 절차가 공유 라이브러리에도 그대로 적용된다** — 그리고 실행 파일과 라이브러리의
+설정이 **다를 수 있다.** "이 시스템은 RELRO 를 쓴다/안 쓴다"는 문장은 성립하지 않는다.
+객체마다 따로 읽어야 한다.
+
+분류: 복귀 주소를 덮는 공격에서는 **무관**이다 (GOT 를 건드리지 않는다). 다만 No RELRO 는
+`.got.plt` 가 쓰기 가능하다는 뜻이므로 **대안 경로가 열려 있다**는 정보다 — ④의 목적지를
+GOT 항목으로 바꾸는 변종. 읽고 나서 "무관"으로 **분류하는 것**이 §H 의 요점이다.
 
 ### F. ⚠️ 판독 함정 — 도구가 이름과 값을 다르게 보여준다
 
@@ -156,15 +182,28 @@ LLVM 쪽은 비트를 직접 읽어야 한다:
 GOT를 건드리지 않는 공격에서는 RELRO가 무관하고, 스택을 실행하지 않는 공격에서는 NX가
 무관하다. 어느 고리를 끊는지로 따져야 한다 → [[Concepts/Binary/Ret2Win_Pattern]]
 
+## Related
+
+- [[Concepts/Binary/Ret2Win_Pattern]] — 네 기제가 각각 어느 링크를 끊는지의 대조표.
+- [[Concepts/Binary/ROP]] — **NX 가 켜졌을 때 남는 길.** §C 의 금지를 우회하지 않고 피한다.
+- [[Concepts/Binary/Ret2Libc_Pattern]] — NX(§C) + ASLR(§G) 이 동시에 걸린 상태의 표준 해법.
+- [[Concepts/Binary/ELF_Header_Fields]] · [[Concepts/Binary/ELF_Sections_And_Relocation]] —
+  네 기제를 읽는 두 구조.
+- [[Tools/objdump]] · [[Tools/nm]] — 판독 도구.
+
 ## Encountered / Applied In
 
 - External: local-only wargame tree (no-publish) — `checksec` 없이 네 기제를 각각의 구조에서
   읽고, 그중 어느 것이 해당 공격을 무력화하는지 분류했다. `-z execstack` / `-fstack-protector`
   / `-Wl,-z,relro,-z,now` / `-no-pie` 를 끄고 켠 합성 바이너리로 각 표시를 대조했다.
+- External: local-only wargame tree (no-publish) — 두 번째 사례에서 **NX 가 켜져 있어** §C 의
+  공격이 불가능했고, 대신 §E 의 RELRO 를 실제로 판독(둘 다 없음 = No RELRO)한 뒤 "무관"으로
+  분류했다. canary 판정에서 §D 의 [Nullity] 함정에 실제로 걸렸다.
 
 ## Expand Later (`/deep` candidates)
 
-- **ROP** — NX가 켜졌을 때 `.text` 조각(gadget)을 이어 붙이는 방법
+- ~~**ROP** — NX가 켜졌을 때 `.text` 조각(gadget)을 이어 붙이는 방법~~
+  → **2026-09-29 소비됨**: [[Concepts/Binary/ROP]], [[Concepts/Binary/Ret2Libc_Pattern]]
 - **Canary leak** — 같은 프로세스에서 canary를 읽어내는 경로 (format string, partial overwrite)
 - **FORTIFY_SOURCE / `_FORTIFY_LEVEL`** — 다섯 번째 기제, 심볼(`__memcpy_chk`)에 드러난다
 - CET / shadow stack — `.note.gnu.property` 에 드러나는 최신 기제
