@@ -249,6 +249,7 @@ RIP-relative 계산식: **`다음 명령의 주소` + `변위`**.
 ## Concepts This Implements
 
 - [[Concepts/Binary/ROP]] — 가젯을 **바이트 수준에서** 찾는다 (`-d`). 명령 경계는 해석일 뿐이다
+- [[Concepts/Binary/Stack_Canary]] — `fs:0x28` 교차검증, 그리고 `lea` 변위로 **정렬 구멍** 확인
 - [[Concepts/Binary/Ret2Libc_Pattern]] — `-p` 로 `LOAD` 좌표를 읽어 파일 오프셋을 주소로
 
 - [[Concepts/Binary/Stack_Frame_And_Call_Ret]]

@@ -131,6 +131,19 @@ fputs("done\n", stdout);
 크래시하는 프로그램의 마지막 출력이 사라지는 일이 생긴다 — 디버깅 시 `stderr`(기본
 `_IONBF`)를 쓰거나 `_IONBF`로 바꾸는 이유.
 
+### F. `_exit` 는 flush 를 건너뛴다 (2026-09-29 추가)
+
+| | 하는 일 |
+|---|---|
+| `exit(n)` | `atexit` 핸들러 실행 + **모든 `FILE*` flush** → `_exit(n)` |
+| **`_exit(n)`** | **곧장 syscall.** 버퍼에 남은 것은 **버려진다** |
+
+⭐ 그래서 `fputs(..., stdout); _exit(0);` 는 **stdout 이 버퍼링되어 있으면 아무것도 출력하지
+않는다.** 앞에서 `setvbuf(stdout, NULL, _IONBF, 0)` 로 버퍼링을 껐다면 안전하다 — 두 호출이
+**짝으로** 성립하는 코드다. §C·§E 의 실전 사례.
+
+파이프로 붙였을 때 출력이 사라지면 이 조합을 먼저 의심해라.
+
 ## Related
 
 - [[Concepts/Linux/File_IO_And_Cursor]] — 같은 계층 구조를 **Python 층위**에서 다룬다

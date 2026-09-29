@@ -154,6 +154,9 @@ attribute가 **없는** 경우, 정렬을 스스로 맞춘다: 목적지 주소 
   되는 것은 **libc 진입** 때문이지 `ret` 진입 자체 때문이 아니다.
 - [[Concepts/Binary/Syscall_Convention]] — 커널 진입 경로는 정렬을 요구하지 않는다.
 - [[Concepts/Binary/ROP]] — 슬롯 회계로 정렬을 관리한다. 빈 `ret` 가젯의 정체.
+- [[Concepts/Binary/Stack_Canary]] — ⚠️ **다른 종류의 정렬이다.** 이 노트는 `rsp` 의
+  16정렬(ABI, `call` 시점), 그쪽은 프레임 **안** 객체의 16정렬(컴파일러 배치가 만드는
+  패딩 구멍). 둘 다 16이라 혼동하기 쉽다.
 - [[Concepts/Binary/Ret2Libc_Pattern]] — 이 정렬 문제가 **실제로 터지는** 곳 (`system` 내부의 `movaps`).
 
 ## Encountered / Applied In

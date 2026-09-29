@@ -121,6 +121,8 @@ no self-description; the specification supplies all three.
 - [[Concepts/Binary/Twos_Complement]] — signed 해석의 실체
 - [[Concepts/Binary/ELF_Header_Fields]] — `EI_CLASS`/`EI_DATA`가 포인터 크기와 바이트 순서를 선언한다. §G의 전제
 - [[Concepts/Binary/Ret2Win_Pattern]] — §G의 패킹이 실제로 쓰이는 곳
+- [[Concepts/Binary/Stack_Canary]] — 유출한 canary 를 `p64` 로 **원래 자리에 되돌려** 놓는다.
+  정수로 받아 정수로 유지하고 마지막에 한 번 패킹 (§I).
 - [[Concepts/Binary/Ret2Libc_Pattern]] — §I의 규칙이 필수가 되는 곳 (leak 파싱 → base 산술 → payload 조립이 한 줄에 섞인다)
 - [[Concepts/Binary/Shellcode]] — §H의 문자열↔즉치값 패킹이 쓰이는 곳
 - [[Tools/pwntools]] — `p64`/`u64` 가 §G의 `struct.pack('<Q')` 을 감싼 것

@@ -167,6 +167,7 @@ $ nm -D libc.so.6 | grep -E ' (system|puts)$'
 - [[Concepts/Linux/Static_Binary_Triage]]
 - [[Concepts/Binary/Ret2Libc_Pattern]] — `-D` 로 뽑은 오프셋이 쓰이는 곳
 - [[Concepts/Binary/Memory_Protections]] — canary 판독이 심볼표에 의존한다
+- [[Concepts/Binary/Stack_Canary]] — `__stack_chk_fail` 의 **존재 자체**가 증거인 이유
 
 ## Quick Reference
 
