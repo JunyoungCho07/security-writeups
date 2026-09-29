@@ -82,6 +82,37 @@ no self-description; the specification supplies all three.
 - ⚠️ **고정 인덱스 슬라이싱은 길이가 바뀌면 깨진다.** 유출된 주소의 16진 자릿수는 환경마다 다르다 (`0x7ffd…` 12자리 vs 에뮬레이션 `0x40…` 10자리). `.split()` 으로 토큰을 꺼내라.
 - ⭐ **문자열을 정수 즉치값에 담는 것도 같은 규칙이다.** `"/bin/sh"`를 8바이트 값으로 쓰면 `0x68732f6e69622f` — 리틀엔디안으로 메모리에 놓이면 `2f 62 69 6e 2f 73 68 00` = 글자 순서 그대로 + 끝 NUL. → [[Concepts/Binary/Shellcode]] §C
 
+### I. ⭐⭐ 정수 / 숫자의 **텍스트** / 바이트열 — 셋은 다른 것이다 (2026-09-29)
+
+§G·§H 의 함정이 전부 이 한 가지 혼동에서 나온다. 세 표현을 나란히 두면:
+
+| 쓴 것 | 무엇인가 | 길이 |
+|---|---|---|
+| `0x823a0` | **정수** — 값 533408 | (없음, 수다) |
+| `'0x823a0'` / `b'0x823a0'` | **글자들** — `0`,`x`,`8`,`2`,… | 7바이트 |
+| `p64(0x823a0)` | **바이트열** — `a0 23 08 00 00 00 00 00` | 8바이트 |
+
+- ⚠️ **`int.from_bytes` 를 16진 텍스트에 쓰면 안 된다.** `int.from_bytes(b'00000000000823a0', 'big')`
+  는 그 **ASCII 코드들**(`0x30 0x30 …`)을 128비트 정수로 읽는다 — `0x823a0` 과 아무 관계 없는
+  천문학적 값이 나오고 **에러는 나지 않는다.** `int.from_bytes` 는 "바이트 → 정수"이고
+  "16진 텍스트 → 정수"는 `int(s, 16)` 이다.
+- ⚠️ **파이썬 16진 리터럴에 앞자리 0을 붙이면 SyntaxError.** 측정:
+  `00000000004005c2` → `leading zeros in decimal integer literals are not permitted`,
+  `1b45cf` → `invalid decimal literal`. 도구 출력의 `0` 패딩을 그대로 복사하면 걸린다 —
+  `0x4005c2` 처럼 **`0x` 접두사 + 앞자리 0 제거**.
+- ⚠️ **`to_bytes` 는 길이와 엔디안을 직접 줘야 한다.** `n.to_bytes(2, 'big')` →
+  `OverflowError: int too big to convert` (2바이트 최대 65535). 주소는 **8바이트 리틀엔디안**
+  이므로 `to_bytes(8, 'little')`, 즉 `p64(n)`.
+
+> [!tip] ⭐ 규칙 세 줄 — 이것만 지키면 위 함정이 전부 사라진다
+> ```
+> 주소는 처음부터 끝까지 정수로 다룬다      (0x823a0 — 따옴표 없음)
+> 텍스트 → 정수는  int(s, 16)   한 번만
+> 정수 → payload 는 p64(n)      한 번만
+> ```
+> 중간에 bytes 로 바꿔 계산하려는 시도가 **전부** 버그다. 주소 산술(`base + off`)은 정수
+> 영역에서 끝내고, 바이트로 내려가는 것은 payload 조립 순간 한 번뿐이다.
+
 ## Encountered / Applied In
 - External: local-only wargame tree (no-publish) — 컨테이너 포맷 필드 파싱
 - External: local-only wargame tree (no-publish) — 8바이트 함수 주소를 리틀엔디안으로 패킹해 입력 버퍼에 심는 작업(§G)
@@ -90,6 +121,7 @@ no self-description; the specification supplies all three.
 - [[Concepts/Binary/Twos_Complement]] — signed 해석의 실체
 - [[Concepts/Binary/ELF_Header_Fields]] — `EI_CLASS`/`EI_DATA`가 포인터 크기와 바이트 순서를 선언한다. §G의 전제
 - [[Concepts/Binary/Ret2Win_Pattern]] — §G의 패킹이 실제로 쓰이는 곳
+- [[Concepts/Binary/Ret2Libc_Pattern]] — §I의 규칙이 필수가 되는 곳 (leak 파싱 → base 산술 → payload 조립이 한 줄에 섞인다)
 - [[Concepts/Binary/Shellcode]] — §H의 문자열↔즉치값 패킹이 쓰이는 곳
 - [[Tools/pwntools]] — `p64`/`u64` 가 §G의 `struct.pack('<Q')` 을 감싼 것
 - [[Concepts/Linux/C_Input_Functions]] — 어떤 입력 함수가 `0x00`을 통과시키는가 (§G의 실행 가능성)
