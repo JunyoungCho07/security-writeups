@@ -138,9 +138,16 @@ sled를 깔아도 오프셋 측정은 여전히 정확해야 한다. 그리고 s
 
 → [[Concepts/Binary/Ret2Libc_Pattern]], [[Concepts/Binary/ROP]]
 
-**새로 생기는 링크가 하나 있다 — ⓪ 주소 확보.** ret2win 은 없었고, ret2shellcode 는 버퍼
-주소, ret2libc 는 libc base. 실전 문제의 난이도는 대체로 **④가 아니라 ⓪** 에 있다 (leak 이
-공짜로 주어지는가, 2단계 체인으로 스스로 만들어야 하는가).
+**새로 생기는 링크가 하나 있다 — ⓪.** ret2win 은 없었고, ret2shellcode 는 버퍼 주소,
+ret2libc 는 libc base. 실전 문제의 난이도는 대체로 **④가 아니라 ⓪** 에 있다 (leak 이 공짜로
+주어지는가, 2단계 체인으로 스스로 만들어야 하는가).
+
+> ⭐ **⓪ 의 정의 수정 (2026-09-29).** 처음엔 "주소 확보"로 썼는데 **너무 좁다.**
+> canary 가 켜진 문제에서 payload 에 넣어야 했던 것은 주소가 아니라 **canary 값**이었다.
+> 같은 자리를 차지한다 — *payload 를 만들기 전에 알아내야 하는 런타임 값*.
+>
+> **⓪ = 런타임 비밀의 확보.** 인스턴스: 스택 주소 · libc base · PIE base · **canary**.
+> → [[Concepts/Binary/Stack_Canary]] §F
 
 ### payload의 물리적 형태
 
@@ -191,6 +198,7 @@ sled를 깔아도 오프셋 측정은 여전히 정확해야 한다. 그리고 s
 - [[Tools/pwntools]] — payload 조립·전송을 대신하는 도구 (손으로 한 뒤에 쓴다).
 - [[Concepts/Binary/ROP]] — ④가 한 지점이 아니라 **가젯의 순열**로 확장된 일반형.
 - [[Concepts/Binary/Ret2Libc_Pattern]] — NX 가 켜졌을 때 ④가 가는 곳.
+- [[Concepts/Binary/Stack_Canary]] — ②를 **끊지 않고 통과**하는 법, 그리고 ⓪ 의 비주소 사례.
 
 ## Encountered / Applied In
 
@@ -209,6 +217,8 @@ sled를 깔아도 오프셋 측정은 여전히 정확해야 한다. 그리고 s
   Later 로 이월).
 - **⓪ 주소 확보(leak) 자체의 원자화** — ret2plt 2단계 leak, format string leak, partial
   overwrite. 위 §"또 ④ 하나"에서 **링크 ⓪**로 분리해 둔 것.
-- **Stack canary 우회** — 부분 덮어쓰기, brute force(fork 서버), leak, 그리고 canary가
-  `[rbp+0]` 아래에 있다는 좌표적 사실.
+- ~~**Stack canary 우회** — 부분 덮어쓰기, brute force(fork 서버), leak, 그리고 canary가
+  `[rbp+0]` 아래에 있다는 좌표적 사실.~~
+  → **2026-09-29 소비됨**: [[Concepts/Binary/Stack_Canary]]. (예약문의 "`[rbp+0]` 아래"는
+  부정확했다 — 정확히 **`[rbp-8]`** 이고, 그 고정 좌표가 오프셋 공식을 깨뜨린다.)
 - **PIE 우회** — 부분 덮어쓰기(하위 1.5바이트는 base와 무관), leak을 통한 base 복원.
