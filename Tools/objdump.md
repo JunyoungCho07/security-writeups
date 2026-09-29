@@ -71,6 +71,19 @@ GNU판은 `objdump --info` 가 지원 타깃을 나열한다 (arm64 Debian → `
 
 ---
 
+### ⚠️ 같은 기능, 다른 플래그 이름 — 함수 하나만 디스어셈블 (2026-09-29 추가)
+
+| 판 | 함수 하나만 보는 플래그 |
+|---|---|
+| **macOS / LLVM** | `--disassemble-symbols=NAME` |
+| **GNU binutils** | `--disassemble=NAME` |
+
+⭐ **BFD 게이트와는 다른 종류의 비호환이다.** 위 §는 "무엇을 읽을 수 있나"(빌드 타깃)이고
+이것은 "무엇을 어떻게 부르나"(CLI 표면)다. 둘을 같은 문제로 묶으면 진단이 엉킨다 —
+플래그 이름이 틀리면 **파일을 못 읽는 게 아니라 옵션 에러**가 난다.
+
+전체를 찍고 `grep`/페이저로 찾는 것이 어느 판에서나 되는 최소공통분모다.
+
 ## Common Flags
 
 | Flag | Long | Effect |
@@ -143,6 +156,18 @@ objdump -s -j .rodata ./binary
 
 `-s`는 **가상 주소와 함께** 덤프하므로, `lea rax, [rip + 0x...]`이 가리키는 곳에 무엇이
 있는지 바로 대조된다. (`strings -t x`는 **파일 offset**을 주므로 주소 대조에 부적합하다.)
+
+### 세그먼트 좌표 — 파일 오프셋 ↔ 가상 주소
+
+```bash
+$ objdump -p ./lib.so          # Program Header 의 LOAD 항목들
+```
+
+각 `LOAD` 가 `off`(파일 위치)와 `vaddr`(적재 주소)를 **따로** 적는다. `strings -t x` 로 얻은
+파일 오프셋을 주소로 바꿀 때 이 두 값이 필요하다 →
+[[Concepts/Binary/ELF_Sections_And_Relocation]] §G
+
+`-p` 하나가 NX·RELRO 판독과 이 변환을 **동시에** 커버한다.
 
 ### 방어 기제 판독 (checksec 없이)
 
@@ -222,6 +247,9 @@ RIP-relative 계산식: **`다음 명령의 주소` + `변위`**.
   다른 아키텍처였으나 정적 분석에는 영향이 없었다.
 
 ## Concepts This Implements
+
+- [[Concepts/Binary/ROP]] — 가젯을 **바이트 수준에서** 찾는다 (`-d`). 명령 경계는 해석일 뿐이다
+- [[Concepts/Binary/Ret2Libc_Pattern]] — `-p` 로 `LOAD` 좌표를 읽어 파일 오프셋을 주소로
 
 - [[Concepts/Binary/Stack_Frame_And_Call_Ret]]
 - [[Concepts/Binary/ELF_Header_Fields]]

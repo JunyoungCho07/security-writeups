@@ -2,8 +2,8 @@
 tool: pwntools
 category: exploitation
 man_section: null
-related: [objdump, nm, xxd]
-last_used: 2026-09-28
+related: [objdump, nm, xxd, strings]
+last_used: 2026-09-29
 tags: [tool, python, exploitation, binary, ctf]
 ---
 
@@ -60,6 +60,9 @@ ERROR: Failed building wheel for unicorn
 | **`r.interactive()`** | `select` 루프로 stdin↔소켓 왕복 | shell과 대화 |
 | `cyclic(n)` / `cyclic_find(x)` | 직접 패턴 생성/검색 | 오프셋 찾기 |
 | `ELF('./bin')` | `nm`, `objdump` | 심볼·섹션을 Python 객체로 |
+| `e.symbols['puts']` | `nm -D` | 심볼의 주소/오프셋 |
+| `next(e.search(b'/bin/sh\x00'))` | `strings -t x` **+ `PT_LOAD` 변환** | 바이트열의 **가상 주소** |
+| **`e.address = base`** | 손으로 `base + off` | ⭐ 이후 모든 조회가 **런타임 주소**로 바뀐다 |
 | `process('./bin')` | `subprocess` | 로컬 실행 |
 | `context.arch = 'amd64'` | — | 아키텍처 전역 설정 (`p64` 등의 기본값) |
 
@@ -83,6 +86,27 @@ r.interactive()
 ⭐ `int()` 는 **bytes 를 그대로 받는다** — `.decode()` 가 필요 없고, `0x` 접두사도
 `base=16` 이면 허용된다.
 
+## ⭐ `ELF` 객체 — 오프셋 산수를 대신한다 (2026-09-29)
+
+ret2libc 의 두 줄 산수(`base = leak − off`, `target = base + off`)를 `.address` 대입 하나가
+흡수한다:
+
+```python
+libc = ELF('./libc.so.6')            # 오프셋들 (ET_DYN 이므로 base 상대)
+libc.address = leak - libc.symbols['puts']     # ← base 를 알려준다
+# 이 시점부터
+libc.symbols['system']               # 런타임 실제 주소
+next(libc.search(b'/bin/sh\x00'))    # 런타임 실제 주소
+```
+
+⭐ **`search()` 가 파일 오프셋 → 가상 주소 변환을 이미 해 준다.** 손으로 하면
+`PT_LOAD` 의 `off`/`vaddr` 를 찾아 빼고 더해야 하는 단계다 →
+[[Concepts/Binary/ELF_Sections_And_Relocation]] §G
+
+> [!tip] 교차 검증으로 한 번만 쓰고 넘겨라
+> 손 계산값과 `ELF` 값을 대조해 같으면 이해가 맞고, 다르면 어느 쪽이 틀렸는지가 학습거리다.
+> 그 한 번 이후에는 도구를 쓴다 — 이 저장소의 도입 원칙 그대로.
+
 ## Pitfalls
 
 > [!warning] Common Mistakes
@@ -98,7 +122,12 @@ r.interactive()
 > 4. **`p64` 를 쓰면서 `bytes.fromhex` 로 주소를 만들지 마라.** `fromhex` 는 글자를 그대로
 >    바이트로 바꿔 **빅엔디안**이 되고, 길이도 8바이트가 아니다. 복귀 주소는 리틀엔디안
 >    8바이트여야 한다. → [[Concepts/Binary/Binary_Number_Encoding]]
-> 5. **`assert len(payload) == …` 를 빼지 마라.** 위 4번 같은 실수는 에러 없이 짧은 payload를
+> 5. **`search()` 는 제너레이터다.** `libc.search(b'/bin/sh')` 자체는 주소가 아니라
+>    이터레이터다 — `next(...)` 로 꺼내야 한다. 그냥 `p64()` 에 넣으면 타입 에러가 나거나,
+>    더 나쁘게는 f-string 에서 `<generator object …>` 로 조용히 찍힌다.
+> 6. **`.address` 는 심볼을 읽기 *전에* 대입해라.** 대입 전에 꺼낸 값은 오프셋이고 대입 후는
+>    절대 주소다. 두 값이 같은 변수명으로 섞이면 원인 추적이 어렵다.
+> 7. **`assert len(payload) == …` 를 빼지 마라.** 위 4번 같은 실수는 에러 없이 짧은 payload를
 >    만들고, 서버에서 조용히 실패한다. 길이 검산이 유일한 방어다.
 
 ## 의도적으로 쓰지 않는 것
@@ -117,6 +146,7 @@ one_gadget / `ropper --auto` / angr 처럼 **무엇을 할지 결정하는** 자
 |---|---|
 | [[Tools/objdump]] | 보완 — 바이트·디스어셈블은 여전히 objdump 로 본다 |
 | [[Tools/nm]] | 대안 — `ELF().symbols` 가 같은 정보를 준다 |
+| [[Tools/strings]] | 대안 — `ELF().search()` 가 같은 일을 하고 **좌표 변환까지** 해 준다 |
 | `gdb` + `pwndbg` | 보완 — pwntools 의 `gdb.attach()` 로 연동 |
 
 ## Concepts This Implements
@@ -124,6 +154,8 @@ one_gadget / `ropper --auto` / angr 처럼 **무엇을 할지 결정하는** 자
 - [[Concepts/Binary/Binary_Number_Encoding]] — `p64`/`u64` 가 `struct` 를 감싼 것
 - [[Concepts/Binary/Ret2Win_Pattern]] — payload 조립의 대상
 - [[Concepts/Binary/Shellcode]] — 실어 보내는 내용
+- [[Concepts/Binary/Ret2Libc_Pattern]] — `ELF().address` 가 대신하는 산수
+- [[Concepts/Binary/ROP]] — `p64` 로 조립하는 체인
 
 ## Quick Reference
 

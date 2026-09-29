@@ -2,8 +2,8 @@
 tool: nm
 category: binary-analysis
 man_section: 1
-related: [objdump, strings, xxd]
-last_used: 2026-09-27
+related: [objdump, strings, xxd, readelf]
+last_used: 2026-09-29
 tags: [tool, binary, elf, symbols, static-analysis]
 ---
 
@@ -54,6 +54,11 @@ nm [OPTIONS] <objfile>...
 
 `U`가 실무상 가장 유용하다 — **이 바이너리가 어떤 외부 함수에 의존하는지**의 목록이다.
 
+⚠️ **`W`(weak)를 "쓸 수 없는 주소"로 오해하지 마라.** glibc 는 `system`·`puts` 같은 함수를
+**weak alias** 로 내놓으므로 라이브러리 심볼표에서 `W` 로 보이는 것이 정상이다. 주소 값은
+`T` 와 똑같이 유효하다. `W` 가 말하는 것은 "다른 정의가 있으면 양보한다"는 **링크 시점의 규칙**
+이고, 이미 링크된 라이브러리를 읽을 때는 무관하다.
+
 ## Common Flags
 
 | Flag | Long | Effect | 왜 쓰나 |
@@ -99,6 +104,23 @@ $ nm -u ./binary
 $ nm -nS --defined-only ./binary
 ```
 
+### ⭐ 공유 라이브러리에서 오프셋 뽑기 (ret2libc)
+
+```bash
+$ nm -D libc.so.6 | grep -E ' (system|puts)$'
+000000000004f4e0 W system@@GLIBC_2.2.5
+00000000000823a0 W puts@@GLIBC_2.2.5
+```
+
+`-D`(동적 심볼표)가 `.so` 의 실질적 심볼 목록이다. 값의 의미가 중요하다:
+
+> `libc.so.6` 은 `ET_DYN` 이므로 이 숫자들은 **절대 주소가 아니라 적재 base 로부터의
+> 오프셋**이다. 실행 중 주소는 `base + 이 값`. → [[Concepts/Binary/ELF_Header_Fields]] §F
+
+⚠️ **문자열은 이 목록에 없다.** `"/bin/sh"` 는 심볼이 아니라 `.rodata` 의 바이트다 →
+[[Tools/strings]]. 그리고 그쪽은 좌표계가 달라서(파일 오프셋) 변환이 필요하다 →
+[[Concepts/Binary/ELF_Sections_And_Relocation]] §G
+
 ## Pitfalls
 
 > [!warning] Common Mistakes
@@ -110,6 +132,12 @@ $ nm -nS --defined-only ./binary
 >    숫자가 실행 중 주소와 같다. → [[Concepts/Binary/ELF_Header_Fields]]
 > 3. **`nm`은 정렬하지 않는다** (기본은 이름 순). 배치를 보려면 `-n`을 명시해라.
 > 4. **`U` 심볼의 빈 주소 칸을 0으로 착각하지 마라.** 주소가 없는 것이지 0이 아니다.
+> 5. ⭐ **"없음"을 증거로 쓸 때는 그 출력이 "있음"을 보여줄 수 있는지 먼저 확인해라.**
+>    실제로 물린 사례: `--defined-only`(또는 그에 준하는 필터)로 목록을 뽑아 놓고
+>    "`__stack_chk_fail` 이 없다 → canary 없다"라고 결론냈다. 그 출력에는 `U` 줄이 **하나도**
+>    없었다 — 동적 링크 바이너리인데 그럴 수가 없다. **판별법:** 반드시 있어야 하는 다른 `U`
+>    심볼(`puts` 등 호출하는 libc 함수)이 보이는지 본다. 안 보이면 판정 자체가 무효다.
+>    → [[Concepts/Binary/Memory_Protections]] §D
 
 ## Edge Cases
 
@@ -123,7 +151,7 @@ $ nm -nS --defined-only ./binary
 |---|---|
 | [[Tools/objdump]] | **보완.** `nm`은 이름→주소, `objdump -d`는 그 주소의 코드. 보통 `nm`으로 좌표를 잡고 `objdump`로 읽는다 |
 | [[Tools/objdump]] (`-t`) | **대안.** `objdump -t`도 심볼 테이블을 낸다 (출력 형식만 다름) |
-| [[Tools/strings]] | 보완 — 심볼이 아닌 데이터 쪽 문자열 |
+| [[Tools/strings]] | **보완 — 좌표계가 다르다.** `nm` 값은 가상 주소(또는 base 상대), `strings -t` 값은 **파일 오프셋**. 섞으면 세그먼트 차이만큼 틀린다 |
 | [[Tools/xxd]] | 하위 수준 — 헤더 바이트를 직접 볼 때 |
 | `readelf -s` | 대안. **macOS에는 없다** (`readelf` 미설치) — `nm` / `objdump -t`로 대체 |
 
@@ -137,6 +165,8 @@ $ nm -nS --defined-only ./binary
 
 - [[Concepts/Binary/ELF_Header_Fields]]
 - [[Concepts/Linux/Static_Binary_Triage]]
+- [[Concepts/Binary/Ret2Libc_Pattern]] — `-D` 로 뽑은 오프셋이 쓰이는 곳
+- [[Concepts/Binary/Memory_Protections]] — canary 판독이 심볼표에 의존한다
 
 ## Quick Reference
 
@@ -144,7 +174,8 @@ $ nm -nS --defined-only ./binary
 nm --defined-only -n f       # 이 파일이 제공하는 심볼, 주소 순   ← 정찰 기본
 nm -u f                      # 외부 의존성 (+ 최소 glibc 요구치)
 nm -nS --defined-only f      # 주소 + 크기
-nm -D f                      # stripped 일 때 마지막 희망
+nm -D f                      # 동적 심볼표 — .so 의 실질 목록 / stripped 일 때 마지막 희망
+nm -D libc.so.6 | grep ' system$'   # ret2libc 오프셋 (값 = base 상대)
 nm -C f                      # C++ 이름 복원
 ```
 
