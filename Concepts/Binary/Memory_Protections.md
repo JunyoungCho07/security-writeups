@@ -87,6 +87,11 @@ NX가 꺼져 있으면 성립하는 공격: 버퍼에 **기계어를 써 넣고*
 컴파일러가 넣는 코드: 진입 시 `mov rax, fs:0x28` → `mov [rbp-8], rax`, 종료 시 비교 →
 불일치면 **`__stack_chk_fail` 호출** → abort.
 
+⭐ `fs:0x28` 은 **스레드 제어 블록(TLS)의 한 칸**이다 — 프레임마다 뽑는 것이 아니라 스레드당
+하나를 모든 프레임이 공유한다. 그리고 관측되는 값은 항상 **최하위 바이트가 `00`** 인데,
+이는 문자열 함수가 거기서 멈추게 하려는 **설계**다(실효 무작위성 7바이트).
+좌표·통과 경로·오프셋 공식 파괴는 → [[Concepts/Binary/Stack_Canary]]
+
 ⭐ **왜 `nm -u`(미정의)에서 보이나:** 그 함수의 코드는 libc에 있어 이 파일에 없다(`U`).
 그런데 **이름이 목록에 있다는 것 자체가** "이 바이너리에 그것을 호출하는 코드가 있다"는
 뜻이고, 그 호출을 만드는 것은 **canary 계측밖에 없다.** 없으면 이름이 등장조차 하지 않는다.
@@ -185,6 +190,8 @@ GOT를 건드리지 않는 공격에서는 RELRO가 무관하고, 스택을 실�
 ## Related
 
 - [[Concepts/Binary/Ret2Win_Pattern]] — 네 기제가 각각 어느 링크를 끊는지의 대조표.
+- [[Concepts/Binary/Stack_Canary]] — §D 의 **심화**: 좌표 `[rbp-8]`, NUL 바이트 설계,
+  통과 경로 4가지, 그리고 오프셋 공식이 깨지는 이유.
 - [[Concepts/Binary/ROP]] — **NX 가 켜졌을 때 남는 길.** §C 의 금지를 우회하지 않고 피한다.
 - [[Concepts/Binary/Ret2Libc_Pattern]] — NX(§C) + ASLR(§G) 이 동시에 걸린 상태의 표준 해법.
 - [[Concepts/Binary/ELF_Header_Fields]] · [[Concepts/Binary/ELF_Sections_And_Relocation]] —
