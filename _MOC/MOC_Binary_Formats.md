@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Binary_Formats
-last_updated: 2026-09-27
+last_updated: 2026-09-29
 tags: [moc, binary, file-format, forensics, integrity]
 ---
 
@@ -25,7 +25,7 @@ graph TD
 
     T_XXD[Tools/xxd<br/>돋보기]
     T_GREP[Tools/grep -abo<br/>오프셋 검색]
-    T_STR[Tools/strings<br/>미작성]
+    T_STR[Tools/strings<br/>문자열 → 파일 오프셋]
 
     ENC -->|Prerequisite| CHK
     TWO -->|Prerequisite| ENC
@@ -51,10 +51,12 @@ graph TD
     click IO  "Concepts/Linux/File_IO_And_Cursor.md"
     click T_XXD "Tools/xxd.md"
     click T_GREP "Tools/grep.md"
+    click T_STR "Tools/strings.md"
 ```
 
 > Legend: solid arrow = prerequisite/leads-to, dotted arrow = uses tool / cross-cutting relation.
-> `Tools/strings` 는 아직 미작성 — 그래프에 남겨둔 것은 **미해결 to-do 를 지우지 않기 위해서**다.
+> `Tools/strings` 는 **2026-09-29 작성됨** — `MOC_Binary_Exploitation` 세션에서 좌표 추출용으로
+> 비자명하게 쓰였다. 그래프에 to-do 로 남겨 둔 것이 실제로 회수된 사례.
 
 ## The Five Axes (핵심 프레임)
 
@@ -88,7 +90,7 @@ graph TD
 |---|---|---|
 | xxd | 🟢 written | 코드가 지목한 좁은 구간을 눈으로 확인하는 **돋보기** |
 | grep | 🟢 written | `-abo` 로 원본 바이트에서 마커 오프셋 수집 (독립 검증 오라클) |
-| strings | 🔴 미작성 | 패턴을 모를 때의 정찰. `Concepts/Linux/Strings_Extraction` 은 이미 존재 |
+| strings | 🟢 **2026-09-29 작성** | 패턴을 모를 때의 정찰 **+ `-t x` 로 좌표 추출**. ⭐ 값은 **파일 오프셋**이지 가상 주소가 아니다 |
 | file | 🔴 미작성 | 시그니처 매칭. Bandit L04/L12/L26 에서 이미 다수 참조 중 |
 
 ## Status Legend
