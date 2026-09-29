@@ -41,6 +41,9 @@ reapplied_in: [[[Wargames/Bandit/Level_32]]]
 - [[Wargames/Bandit/Level_32]] — `uppershell`이 real uid까지 고정(`setreuid`)했는지 `objdump`로 확인 가능(not stripped). [[Setuid]] 문맥.
 
 ## Related
+
+- [[Tools/strings]] — 정찰 3단계의 두 번째. `-t x` 를 붙이면 정찰이 **좌표 추출**로 확장된다
+  (2026-09-29 작성 — 오래 미작성이던 to-do).
 - [[Concepts/Binary/ELF_Header_Fields]] — §A의 `file` 출력이 **요약해 주는 것의 원본**. 헤더 바이트를 직접 읽어 아키텍처·포인터 크기·PIE 여부를 판정한다
 - [[Tools/nm]] — §C의 `nm`. 심볼 타입 글자(`T`/`t`/`U`)와 stripped 대응
 - [[Tools/objdump]] — §C의 `objdump -d`. LLVM판과 GNU판의 타깃 지원 차이가 실무적으로 중요하다

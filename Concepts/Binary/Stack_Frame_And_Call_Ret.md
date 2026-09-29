@@ -145,6 +145,9 @@ arm64 호스트에서 컴파일해 재면 다른 답이 나오거나 재지지 �
 
 ## Related
 
+- [[Concepts/Binary/ROP]] — `ret` **한 명령의 반복**이 ROP다. 이 노트의 `rbp` 좌표계가
+  거기서는 폐기되고, 스택이 프레임이 아니라 **소비되는 테이프**가 된다.
+
 - [[Concepts/Binary/Ret2Win_Pattern]] — 이 구조를 이용해 실행 흐름을 탈취하는 기법. `ret`의
   무검증이 전제.
 - [[Concepts/Binary/Stack_Alignment]] — `call`이 push하는 8바이트가 정렬에 미치는 영향.

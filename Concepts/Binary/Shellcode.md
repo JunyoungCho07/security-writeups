@@ -149,6 +149,18 @@ python3 -c "d=open('sc.bin','rb').read(); print(len(d), d.count(0), d.count(0x0a
 ⚠️ 추출 단계는 **조용히 틀린다.** 파싱이 한 줄을 놓쳐도 에러가 안 나고, 잘린 shellcode가
 "성공적으로" 만들어진다. 길이·첫바이트·끝바이트 대조 외에 방어가 없다.
 
+## Related
+
+- [[Concepts/Binary/ROP]] — **대조.** 코드를 넣을 수 없을 때(NX 켜짐) **있는 코드를 이어 붙인다.**
+  shellcode 의 자족성 요구가 사라지는 대신 가젯 가용성 제약이 생긴다.
+- [[Concepts/Binary/Ret2Libc_Pattern]] — **대조.** 목적지를 만들지 않고 libc 에서 고른다.
+- [[Concepts/Binary/Syscall_Convention]] — shellcode 가 libc 없이 일을 시키는 규약.
+- [[Concepts/Binary/ELF_Sections_And_Relocation]] — relocation 0 기준과 `.text` 추출.
+- [[Concepts/Binary/Memory_Protections]] — NX 가 꺼져 있어야 성립한다.
+- [[Concepts/Binary/Ret2Win_Pattern]] — ④의 목적지를 직접 만드는 변종.
+- [[Concepts/Binary/Stack_Alignment]] — `syscall` 경로는 `movaps` 를 만나지 않는다.
+- [[Concepts/Binary/Binary_Number_Encoding]] — 즉치값 패킹과 리틀엔디안.
+
 ## Encountered / Applied In
 
 - External: local-only wargame tree (no-publish) — 점프할 기존 함수가 제거되어 있고 스택이

@@ -108,6 +108,14 @@ asm volatile ( "명령어" : 출력 : 입력 : 파괴목록 );
 `mov rdx, 0x40` 의 결과가 같고, 컴파일러는 **더 짧은** 쪽을 고른다 (5바이트 vs 7바이트).
 디스어셈블리에서 `mov edx, …` 가 보이는 건 최적화의 흔적이고 의미는 64비트 값이다.
 
+## Related
+
+- [[Concepts/Binary/ROP]] — §A·§B 의 인자 레지스터 순서가 **어떤 `pop` 가젯이 필요한지** 정한다.
+  인자가 적은 함수가 공격자에게 싼 이유.
+- [[Concepts/Binary/Stack_Frame_And_Call_Ret]] — 함수 호출 규약 쪽 (§B 대조표의 왼쪽 줄).
+- [[Concepts/Binary/Shellcode]] — 이 규약을 직접 쓰는 코드.
+- [[Concepts/Binary/Stack_Alignment]] — 커널 진입 경로는 정렬을 요구하지 않는다.
+
 ## Encountered / Applied In
 
 - External: local-only wargame tree (no-publish) — libc 없이 `execve("/bin/sh", NULL, NULL)`
