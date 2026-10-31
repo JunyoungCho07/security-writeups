@@ -21,5 +21,3 @@ Format — one line each, newest last:
 
 ## Parked
 
-_(empty)_
-
