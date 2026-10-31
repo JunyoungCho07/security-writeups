@@ -1,7 +1,7 @@
 ---
 moc: true
 scope: Binary_Formats
-last_updated: 2026-09-29
+last_updated: 2026-10-31
 tags: [moc, binary, file-format, forensics, integrity]
 ---
 
@@ -22,7 +22,10 @@ graph TD
     SUM[Checksum_Hash_MAC<br/>무결성의 3층위]
     FOR[Binary_Format_Forensics<br/>5개 검증 축 · 오라클 설계]
     IO[File_IO_And_Cursor<br/>fd·커서·모드·원자적 교체]
+    UTF[UTF8_Encoding<br/>첫 바이트가 길이를 선언]
+    CFG[Control_Flow_Graph<br/>E_static 선언 vs E_runtime 실측]
 
+    T_IDA[Tools/ida<br/>graph 뷰·한도]
     T_XXD[Tools/xxd<br/>돋보기]
     T_GREP[Tools/grep -abo<br/>오프셋 검색]
     T_STR[Tools/strings<br/>문자열 → 파일 오프셋]
@@ -41,6 +44,10 @@ graph TD
     FOR -.->|uses| T_GREP
     FOR -.->|uses| T_STR
     ENC -.->|read by| T_XXD
+    ENC -->|Prerequisite| UTF
+    UTF -.->|ASCII 기준이라 놓친다| T_STR
+    CFG -.->|uses| T_IDA
+    FOR -.->|선언 vs 실측의 코드판| CFG
 
     click SIG "Concepts/Linux/File_Signatures.md"
     click ENC "Concepts/Binary/Binary_Number_Encoding.md"
@@ -52,6 +59,9 @@ graph TD
     click T_XXD "Tools/xxd.md"
     click T_GREP "Tools/grep.md"
     click T_STR "Tools/strings.md"
+    click UTF "Concepts/Binary/UTF8_Encoding.md"
+    click CFG "Concepts/Binary/Control_Flow_Graph.md"
+    click T_IDA "Tools/ida.md"
 ```
 
 > Legend: solid arrow = prerequisite/leads-to, dotted arrow = uses tool / cross-cutting relation.
@@ -83,6 +93,8 @@ graph TD
 | Checksum_Hash_MAC | Crypto | lite | 🟡 developing | 55 | 검출 ≠ 정정, 일치는 아무것도 증명 못 한다 |
 | Binary_Format_Forensics | Binary | lite | 🟡 developing | 50 | 5개 축 · 오라클 설계 · 명세서 읽기 |
 | File_IO_And_Cursor | Linux | lite | 🟡 developing | 55 | fd·커서·`O_TRUNC`·원자적 교체·`with` |
+| UTF8_Encoding | Binary | lite | 🟡 developing | 40 | 첫 바이트가 길이를 선언(축 2) · `10xxxxxx` 는 연속 바이트 · `strings` 가 놓치는 이유 |
+| Control_Flow_Graph | Binary | lite | 🟡 developing | 40 | 블록·edge · `E_static ⊇ E_runtime` · 점프 테이블 · junk code(def-use) — 선언(그래프) vs 실측(실행)이라 축 5 의 코드판 |
 
 ## Tool Metadata Table
 
@@ -91,6 +103,7 @@ graph TD
 | xxd | 🟢 written | 코드가 지목한 좁은 구간을 눈으로 확인하는 **돋보기** |
 | grep | 🟢 written | `-abo` 로 원본 바이트에서 마커 오프셋 수집 (독립 검증 오라클) |
 | strings | 🟢 **2026-09-29 작성** | 패턴을 모를 때의 정찰 **+ `-t x` 로 좌표 추출**. ⭐ 값은 **파일 오프셋**이지 가상 주소가 아니다 |
+| ida | 🟢 **2026-10-31 작성** | GUI graph 뷰. 노드 상한·Hex-Rays 한도·한글 입력기 함정. `Control_Flow_Graph` 의 도구 |
 | file | 🔴 미작성 | 시그니처 매칭. Bandit L04/L12/L26 에서 이미 다수 참조 중 |
 
 ## Status Legend
