@@ -240,6 +240,8 @@ RIP-relative 계산식: **`다음 명령의 주소` + `변위`**.
 | `readelf` | 대안 (헤더 전문). **macOS에 없다** → `objdump -p`/`-h`로 대체 |
 | `gdb` | **동적** 대응물. `objdump`는 컴파일러의 *의도*, `gdb`는 런타임의 *사실* |
 
+- [[Concepts/Binary/Control_Flow_Graph]] — graph 뷰 대비 선형 스윕. 보조: [[Tools/ida]].
+
 ## Encountered / Applied In
 
 - External: local-only wargame tree (no-publish) — 함수 프롤로그에서 프레임 크기와 버퍼의

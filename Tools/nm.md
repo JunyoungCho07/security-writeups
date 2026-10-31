@@ -155,6 +155,8 @@ $ nm -D libc.so.6 | grep -E ' (system|puts)$'
 | [[Tools/xxd]] | 하위 수준 — 헤더 바이트를 직접 볼 때 |
 | `readelf -s` | 대안. **macOS에는 없다** (`readelf` 미설치) — `nm` / `objdump -t`로 대체 |
 
+- [[Tools/ida]] — GUI 에서 같은 심볼을 보고 xref 를 따라간다.
+
 ## Encountered / Applied In
 
 - External: local-only wargame tree (no-publish) — 호출되지 않는 함수의 주소를 얻기 위해.

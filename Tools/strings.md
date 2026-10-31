@@ -113,6 +113,8 @@ $ strings -a -t x libc.so.6 | grep sh  # 문자열은 바이트에 (파일 오�
 | [[Tools/grep]] | 거의 항상 파이프로 이어진다. `-a` 옵션의 역할이 두 도구에서 비슷하다(바이너리 취급 안 함) |
 | `file` | 선행 — 무슨 파일인지 먼저 안 뒤에 문자열을 본다 |
 
+- [[Concepts/Binary/UTF8_Encoding]] — ASCII 기준 추출이라 멀티바이트 문자를 놓친다. 보조: [[Tools/ida]] 의 Strings 창.
+
 ## Encountered / Applied In
 
 - External: local-only wargame tree (no-publish) — 공유 라이브러리 안 `"/bin/sh"` 의 위치를
