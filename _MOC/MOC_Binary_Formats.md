@@ -24,6 +24,7 @@ graph TD
     IO[File_IO_And_Cursor<br/>fd·커서·모드·원자적 교체]
     UTF[UTF8_Encoding<br/>첫 바이트가 길이를 선언]
     CFG[Control_Flow_Graph<br/>E_static 선언 vs E_runtime 실측]
+    FP[IEEE754_Double_And_NaN<br/>필드·subnormal·NaN 영역·payload]
 
     T_IDA[Tools/ida<br/>graph 뷰·한도]
     T_XXD[Tools/xxd<br/>돋보기]
@@ -45,6 +46,8 @@ graph TD
     FOR -.->|uses| T_STR
     ENC -.->|read by| T_XXD
     ENC -->|Prerequisite| UTF
+    ENC -->|Prerequisite| FP
+    TWO -.->|정수 쪽 부호 표현 대조| FP
     UTF -.->|ASCII 기준이라 놓친다| T_STR
     CFG -.->|uses| T_IDA
     FOR -.->|선언 vs 실측의 코드판| CFG
@@ -61,6 +64,7 @@ graph TD
     click T_STR "Tools/strings.md"
     click UTF "Concepts/Binary/UTF8_Encoding.md"
     click CFG "Concepts/Binary/Control_Flow_Graph.md"
+    click FP "Concepts/Binary/IEEE754_Double_And_NaN.md"
     click T_IDA "Tools/ida.md"
 ```
 
@@ -94,6 +98,7 @@ graph TD
 | Binary_Format_Forensics | Binary | lite | 🟡 developing | 50 | 5개 축 · 오라클 설계 · 명세서 읽기 |
 | File_IO_And_Cursor | Linux | lite | 🟡 developing | 55 | fd·커서·`O_TRUNC`·원자적 교체·`with` |
 | UTF8_Encoding | Binary | lite | 🟡 developing | 40 | 첫 바이트가 길이를 선언(축 2) · `10xxxxxx` 는 연속 바이트 · `strings` 가 놓치는 이유 |
+| IEEE754_Double_And_NaN | Binary | lite | 🟡 developing | 45 | 부호·지수부·가수부 · bias 1023 · 지수부 2047 은 예약(∞/NaN) · NaN 은 many-to-one 이라 텍스트로 왕복 불가 · `%f` 6자리 |
 | Control_Flow_Graph | Binary | lite | 🟡 developing | 40 | 블록·edge · `E_static ⊇ E_runtime` · 점프 테이블 · junk code(def-use) — 선언(그래프) vs 실측(실행)이라 축 5 의 코드판 |
 
 ## Tool Metadata Table

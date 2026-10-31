@@ -53,6 +53,7 @@ a grid whose spacing grows with magnitude.
 - [[Concepts/Binary/Binary_Number_Encoding]] — 정수의 정확 표현(간격 1, `2^64`까지). float의 직접적 대조군.
 - [[Concepts/Binary/Twos_Complement]] — 부호 있는 정수 표현. 정수형이 "격자 없이" 담는 쪽 이야기.
 - [[Concepts/Crypto/Checksum_Hash_MAC]] — MAC이 "바이트"를 인증한다는 점이 위 보안 귀결의 핵심 전제.
+- [[Concepts/Binary/IEEE754_Double_And_NaN]] — 같은 형식의 *비트 레이아웃* 측면: 필드 읽기, subnormal, ±∞/NaN 영역, quiet/payload.
 
 ## Encountered / Applied In
 
@@ -61,7 +62,7 @@ a grid whose spacing grows with magnitude.
 
 ## Expand Later (`/deep` candidates)
 
-- IEEE-754 전체 원자화 — subnormals, rounding modes(round-to-nearest-even),
-  `NaN`/`Inf`, 지수 bias의 필연성.
+- IEEE-754 전체 원자화 — ~~subnormals, `NaN`/`Inf`, 지수 bias~~
+  → **2026-10-31 부분 소비됨**: [[Concepts/Binary/IEEE754_Double_And_NaN]]. 남은 것: rounding modes(round-to-nearest-even), FP 예외 플래그.
 - **Type/parser differential across a trust boundary** — 같은 입력을 두 파서가 다르게
   읽는 취약점 계열(숫자 타입, 직렬화 포맷, 아카이브 파서)을 독립 개념으로.

@@ -173,6 +173,7 @@ no self-description; the specification supplies all three.
 - [[Tools/xxd]] — 바이트를 눈으로 보는 도구
 - [[Concepts/Linux/File_IO_And_Cursor]] — 이 바이트를 파일에서 안전하게 꺼내오는 단계
 - [[Concepts/Binary/Floating_Point_Precision]] — 정수는 간격 1로 정확, float은 큰 값에서 격자로 벌어짐 (대조)
+- [[Concepts/Binary/IEEE754_Double_And_NaN]] — §K 의 double 해석을 필드(부호·지수부·가수부)까지 쪼갠 것, NaN 왕복 불가의 이유.
 - [[Concepts/Binary/UTF8_Encoding]] — 멀티바이트 인코딩과 4바이트 정수 배열로 담긴 데이터 디코드 (엔디언 §C).
 - [[Concepts/Binary/Use_After_Free]] — raw 입력(`fread`)에는 변환 없이 8바이트 little-endian 을 보낸다 (§K).
 
