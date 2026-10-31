@@ -133,6 +133,17 @@ ROP 는 **별개 기법이 아니라 일반형**이다. `ret2win` 은 가젯 0�
 `ret2libc` 는 가젯 1~2개 + libc 함수, 완전한 ROP 는 syscall 을 직접 세팅하는 긴 체인.
 네 링크 체인([[Concepts/Binary/Ret2Win_Pattern]])의 ④ 가 **한 지점이 아니라 순열**로
 확장된 것이 ROP 다.
+### H. ⭐ 반환값 연쇄 — 실행 중에만 정해지는 값 (2026-10-31)
+
+stack 에 미리 쓸 수 있는 것은 **공격 전에 아는 값**(주소, 상수)뿐이다. syscall 의 **반환값**(새 fd, 읽은 바이트 수)은 커널이 실행 중에 정하므로 미리 쓸 수 없다.
+
+- 해법: 반환값은 `rax` 에 남으니 **레지스터 간 이동 gadget**(`mov rdi, rax; ret` 등)으로 다음 인자 레지스터에 옮긴다.
+- ⭐ **순서**: 다음 syscall 의 번호를 넣는 `pop rax` 가 `rax` 를 덮어쓴다. 그래서 `mov` 는 **그 `pop rax` 보다 먼저**.
+- **슬롯 회계 확장**: `pop` gadget 뒤에는 값 칸이 하나 따라온다. `syscall; ret`·`mov …; ret` 처럼 pop 하지 않는 gadget 뒤에는 값 칸 없이 **바로 다음 gadget 주소**가 온다.
+- `syscall` 은 `rax`(반환), `rcx`, `r11` 만 바꾼다. 앞에서 넣은 `rsi`/`rdx` 가 살아남지만 **그것에 기대지 말고 인자를 전부 명시**한다 — chain 을 고치면 조용히 깨진다.
+- 패턴 예 (ORW): `fd = open(path, 0)` → `n = read(fd, buf, size)` → `write(1, buf, n)`. `fd` 와 `n` 이 반환값 연쇄다. `size` 는 `buf` 의 크기를 넘기지 않는다.
+- NX 가 켜져 있으면 shellcode 대신 이 방식으로 **파일 내용만 유출**한다. 셸(`execve`)도 가능하지만 `"/bin/sh"` 문자열이 고정 주소에 있어야 한다 → 없으면 쓰기 가능한 고정 영역(`.bss`)에 먼저 써넣는 단계가 chain 앞에 붙는다 ([[Concepts/Binary/Memory_Protections]]).
+
 
 ## Encountered / Applied In
 
@@ -140,6 +151,7 @@ ROP 는 **별개 기법이 아니라 일반형**이다. `ret2win` 은 가젯 0�
   출제자가 `naked` 함수로 심어둔 `pop rdi; ret` 한 개 + 정렬용 빈 `ret` 한 개로 libc 함수를
   호출. 빈 `ret` 의 주소가 **`pop rdi; ret` 가젯의 두 번째 바이트**였다 — §B 를 실물로 확인한
   지점.
+- External: local-only wargame tree (no-publish) — 문제가 심어 준 gadget 들로 `open → read → write` chain 을 직접 조립. 반환값 `mov` 의 위치와 `write` 인자의 명시화를 세 번에 걸쳐 고쳤다.
 
 ## Related
 

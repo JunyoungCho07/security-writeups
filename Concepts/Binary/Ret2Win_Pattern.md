@@ -199,6 +199,7 @@ ret2libc 는 libc base. 실전 문제의 난이도는 대체로 **④가 아니�
 - [[Concepts/Binary/ROP]] — ④가 한 지점이 아니라 **가젯의 순열**로 확장된 일반형.
 - [[Concepts/Binary/Ret2Libc_Pattern]] — NX 가 켜졌을 때 ④가 가는 곳.
 - [[Concepts/Binary/Stack_Canary]] — ②를 **끊지 않고 통과**하는 법, 그리고 ⓪ 의 비주소 사례.
+- [[Concepts/Binary/Use_After_Free]] — 복귀 주소 대신 **함수 포인터**를 덮어 호출 대상을 `win` 으로 바꾸는 변종.
 
 ## Encountered / Applied In
 

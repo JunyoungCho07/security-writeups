@@ -144,6 +144,7 @@ void f(char *p) { sizeof(p); }   // 8 — 포인터 크기. 배열 크기를 알
   정한다 (`read` → NUL 자유, `strcpy` → NUL 금지).
 - ⚠️ payload 를 `< file` 로 흘려보내면 shell 이 떠도 **stdin 이 EOF** 라 즉시 죽는다.
   `(cat payload; cat) | prog` 로 stdin 을 열어 둬야 한다.
+- [[Concepts/Binary/Use_After_Free]] — `fread` 가 정확히 N바이트를 요구할 때 payload 길이와 `send`/`sendline` 선택.
 
 ## Encountered / Applied In
 

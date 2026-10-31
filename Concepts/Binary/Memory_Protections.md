@@ -181,6 +181,20 @@ LLVM 쪽은 비트를 직접 읽어야 한다:
 → 그래서 "스택에 코드를 놓고 점프"는 NX가 꺼져 있어도 **주소를 모르는 상태에서 시작한다.**
 주소 유출이나 NOP sled 같은 보조 수단이 필요해지는 지점이 여기다.
 
+#### ASLR 확인과 "PIE off 에서도 고정인 것" (2026-10-31)
+
+| 보호 | 어디서 판독하나 | 켜짐 신호 |
+|---|---|---|
+| PIE | ELF `e_type` / `file` | `ET_DYN`(`03 00`) / `pie executable` |
+| NX | `objdump -p` 의 `STACK` flags | `rw-` |
+| Canary | `nm -D -u` | `__stack_chk_fail` |
+| ASLR | **OS 설정** `/proc/sys/kernel/randomize_va_space` | 1 또는 2 |
+
+- `randomize_va_space`: `0` 꺼짐, `1` 스택·mmap 만, `2` heap 까지 (보통 기본). macOS 에는 이 파일이 없다 → Linux 환경에서 본다.
+- **원격 서버의 설정은 볼 수 없다.** 그래서 문제를 풀 때는 "켜져 있다"고 가정하는 것이 안전하다.
+- PIE off 에서 **고정인 것**: 이미지의 `.text` / `.plt` / `.got` / **`.data` / `.bss`**. 랜덤인 것: 스택, heap, libc.
+- 실전 함의: 스택 주소를 모르는데 **주소가 필요한 문자열**(예: 경로, 셸 이름)을 인자로 줘야 하면, 값을 **쓰기 가능한 고정 영역(`.bss`/`.data`)** 에 두면 주소를 안다. 스택에 payload 로 넣는 것만으로는 그 주소를 참조할 수 없다 (leak 이 없다면).
+
 ### H. 분류가 실력이다
 
 넷을 다 읽고 나서 **이 공격에 걸리는 것과 무관한 것을 나누는 것**이 판독의 목적이다.
@@ -197,6 +211,7 @@ GOT를 건드리지 않는 공격에서는 RELRO가 무관하고, 스택을 실�
 - [[Concepts/Binary/ELF_Header_Fields]] · [[Concepts/Binary/ELF_Sections_And_Relocation]] —
   네 기제를 읽는 두 구조.
 - [[Tools/objdump]] · [[Tools/nm]] — 판독 도구.
+- [[Concepts/Binary/Use_After_Free]] — PIE off 여야 함수의 파일 주소가 곧 실제 주소다 (함수 포인터 덮기).
 
 ## Encountered / Applied In
 
@@ -206,6 +221,7 @@ GOT를 건드리지 않는 공격에서는 RELRO가 무관하고, 스택을 실�
 - External: local-only wargame tree (no-publish) — 두 번째 사례에서 **NX 가 켜져 있어** §C 의
   공격이 불가능했고, 대신 §E 의 RELRO 를 실제로 판독(둘 다 없음 = No RELRO)한 뒤 "무관"으로
   분류했다. canary 판정에서 §D 의 [Nullity] 함정에 실제로 걸렸다.
+- External: local-only wargame tree (no-publish) — NX 판독("shellcode 불가 → ROP"), 문자열을 `.bss` 같은 고정 영역에 두는 판단, `Use_After_Free` 의 PIE off 판독.
 
 ## Expand Later (`/deep` candidates)
 

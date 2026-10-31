@@ -112,10 +112,52 @@ no self-description; the specification supplies all three.
 > ```
 > 중간에 bytes 로 바꿔 계산하려는 시도가 **전부** 버그다. 주소 산술(`base + off`)은 정수
 > 영역에서 끝내고, 바이트로 내려가는 것은 payload 조립 순간 한 번뿐이다.
+### J. ⭐ `struct` 포맷 문자열 읽는 법 — 접두사와 타입 코드 (2026-10-31)
+
+맨 앞 글자가 **byte order + 크기 기준 + 정렬**을 한꺼번에 정한다.
+
+| 접두사 | byte order | 크기 기준 | 정렬(padding) |
+|---|---|---|---|
+| `@` (생략 시 기본) | 이 CPU 방식 | native (C 컴파일러 기준) | 있음 |
+| `=` | 이 CPU 방식 | standard (고정 크기) | 없음 |
+| `<` | little-endian | standard | 없음 |
+| `>` | big-endian | standard | 없음 |
+| `!` | network = big-endian | standard | 없음 |
+
+- **생략하면 `@`** 라서 결과가 *스크립트를 돌리는 컴퓨터*에 따라 달라진다. 예: `l`(long)은 Linux x86-64 의 `@` 에서 8바이트, `<` 에서 4바이트. exploit 은 **대상 바이너리의 메모리 형식**에 맞춰야 하므로 `<` 로 못 박는다.
+- 접두사는 맨 앞에 **한 번만** 온다. `'<QQ'` = little-endian 8바이트 정수 두 개.
+- `>`/`!` 는 네트워크 프로토콜 헤더(IP, TCP 포트 등)가 big-endian 이라서 따로 있다.
+
+| 코드 | 크기 | 의미 |
+|---|---|---|
+| `B` / `b` | 1 | unsigned / signed byte |
+| `H` / `h` | 2 | short |
+| `I` / `i` | 4 | int |
+| `Q` / `q` | 8 | **quad word** (x86 에서 word = 16비트, quad = 4배 = 64비트) |
+| `d` | 8 | IEEE-754 double |
+
+- **대문자 = unsigned, 소문자 = signed.** 주소는 음수가 없으니 `Q`. `q` 에 `0xffff…` 급 큰 값을 넣으면 범위 초과 에러.
+- `p64(x)` ≡ `struct.pack('<Q', x)`, `u64(b)` ≡ `struct.unpack('<Q', b)[0]` (pwntools 가 감싼 것).
+
+### K. ⭐ 같은 8바이트의 두 해석 — 정수 vs double, 그리고 텍스트로 운반하기 (2026-10-31)
+
+8바이트 `b` 는 `<Q`(정수)로도, `<d`(IEEE-754 double)로도 읽을 수 있다. 비트는 그대로, **해석만** 다르다 (§D 의 signed/unsigned 와 같은 구조).
+
+- 입력 함수가 `scanf("%lf")` 처럼 **텍스트를 double 로 파싱**하면, 원하는 8바이트를 보내려면 "그 비트 패턴을 갖는 double 의 10진 텍스트"를 보내야 한다: `repr(struct.unpack('<d', b8)[0]).encode()`.
+- `repr(float)` 는 **왕복 가능한 최단 표기**를 만든다 (텍스트 → 파싱 → 같은 비트). 그래서 `'%f'` 같은 고정 소수점 포맷은 안 된다 (작은 값이 `0.000000` 으로 반올림된다).
+- **예외 — NaN**: NaN 은 비트 패턴이 여러 개인데 텍스트 `nan` 은 하나로 합쳐진다 → 왕복 불가.
+- **Subnormal**: 상위 2바이트가 `00` 이면 지수부가 0 이라 값이 대략 `1e-310` 대의 매우 작은 수가 된다. 일반적인 사용자-공간 주소가 여기에 해당하고, subnormal 도 `repr` 로 정확히 왕복한다.
+- **함정 3개**
+  - `struct.unpack` 은 항상 **tuple** 을 돌려준다 → 값 하나여도 `[0]`.
+  - `bytes[0]` 은 **int** 다 (길이 1짜리 bytes 가 아니다). 슬라이스 `b[0:1]` 은 bytes.
+  - 소켓 `send` 는 **bytes** 만 받는다. `repr()` 는 str 이라 `.encode()` 가 필요하다 (안 하면 TypeError).
+- 반대로 `fread` 처럼 **raw 바이트**를 읽는 입력에는 텍스트 변환 없이 `pack` 결과를 그대로 `send` 한다.
+
 
 ## Encountered / Applied In
 - External: local-only wargame tree (no-publish) — 컨테이너 포맷 필드 파싱
 - External: local-only wargame tree (no-publish) — 8바이트 함수 주소를 리틀엔디안으로 패킹해 입력 버퍼에 심는 작업(§G)
+- External: local-only wargame tree (no-publish) — `scanf("%lf")` 로 임의 8바이트를 운반(§K), 그리고 `fread` 에는 raw 바이트(§J). 한 문제에서 두 경로를 모두 겪었다.
 
 ## Related
 - [[Concepts/Binary/Twos_Complement]] — signed 해석의 실체
@@ -131,6 +173,8 @@ no self-description; the specification supplies all three.
 - [[Tools/xxd]] — 바이트를 눈으로 보는 도구
 - [[Concepts/Linux/File_IO_And_Cursor]] — 이 바이트를 파일에서 안전하게 꺼내오는 단계
 - [[Concepts/Binary/Floating_Point_Precision]] — 정수는 간격 1로 정확, float은 큰 값에서 격자로 벌어짐 (대조)
+- [[Concepts/Binary/UTF8_Encoding]] — 멀티바이트 인코딩과 4바이트 정수 배열로 담긴 데이터 디코드 (엔디언 §C).
+- [[Concepts/Binary/Use_After_Free]] — raw 입력(`fread`)에는 변환 없이 8바이트 little-endian 을 보낸다 (§K).
 
 ## Expand Later (`/deep` candidates)
 - 정렬(alignment)과 구조체 패딩 — `@` 포맷이 왜 파일 파싱에 위험한가

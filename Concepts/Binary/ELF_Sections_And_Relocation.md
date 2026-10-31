@@ -170,6 +170,15 @@ vaddr = x − seg.off + seg.vaddr
 
 💡 실무: `ELF().search(b'…')` 가 이 변환을 해서 **vaddr** 를 돌려준다. 손으로 한 번 해보고
 두 값을 대조한 뒤 도구로 넘기면 된다 → [[Tools/pwntools]]
+### H. `p_filesz` 와 `p_memsz` — 파일에 있는 만큼, 메모리에 필요한 만큼 (2026-10-31)
+
+`PT_LOAD` 는 두 크기를 가진다.
+
+- `p_filesz`: 파일에서 **복사해 오는** 바이트 수.
+- `p_memsz`: 메모리에 **확보하는** 바이트 수. `p_memsz > p_filesz` 이면 차이는 **0 으로 채워진다** (이것이 `.bss` 가 파일에 공간을 차지하지 않는 이유).
+- **둘 다 0** 이면 **빈 segment** 다. 디스어셈블러(IDA)는 내용이 없는 이 구간을 `?` 로 표시한다 — 잘못 읽은 것이 아니다.
+- 판독 순서: `readelf -l` / `objdump -p` 로 두 값을 같이 본다.
+
 
 ## Related
 
@@ -179,6 +188,8 @@ vaddr = x − seg.off + seg.vaddr
 - [[Concepts/Binary/Shellcode]] — relocation 0 기준의 근거 (§C).
 - [[Tools/strings]] — §G 의 **파일 오프셋**을 만들어내는 도구. 변환 전 좌표계.
 - [[Tools/objdump]] — `-h`(섹션) / `-p`(세그먼트) / `-s`(내용) / `-r`(relocation).
+- [[Concepts/Binary/Control_Flow_Graph]] — 점프 테이블이 놓이는 섹션과, 디스어셈블러가 그리는 그래프.
+- [[Tools/ida]] — 빈 segment 가 `?` 로 표시되는 곳.
 
 ## Encountered / Applied In
 
@@ -188,6 +199,7 @@ vaddr = x − seg.off + seg.vaddr
 - External: local-only wargame tree (no-publish) — 공유 라이브러리 안 문자열의 **적재 주소**가
   필요해서 §G 의 변환을 손으로 수행. `strings` 의 오프셋과 심볼표의 주소가 서로 다른 좌표계라는
   것을 여기서 확인했다. → [[Concepts/Binary/Ret2Libc_Pattern]]
+- External: local-only wargame tree (no-publish) — IDA 에서 `?` 로 보이던 `LOAD` segment 가 `p_filesz`=`p_memsz`=0 인 빈 segment 임을 헤더로 확인했다.
 
 ## Expand Later (`/deep` candidates)
 

@@ -107,6 +107,33 @@ asm volatile ( "명령어" : 출력 : 입력 : 파괴목록 );
 ⭐ **32비트 이름에 쓰면 상위 32비트가 자동으로 0이 된다.** 그래서 `mov edx, 0x40` 과
 `mov rdx, 0x40` 의 결과가 같고, 컴파일러는 **더 짧은** 쪽을 고른다 (5바이트 vs 7바이트).
 디스어셈블리에서 `mov edx, …` 가 보이는 건 최적화의 흔적이고 의미는 64비트 값이다.
+### F. i386 과 x86-64 는 규약이 다르다 (2026-10-31)
+
+| | i386 | x86-64 |
+|---|---|---|
+| 진입 | `int 0x80` | `syscall` |
+| 번호 | `eax` | `rax` |
+| 인자 | `ebx, ecx, edx, esi, edi, ebp` | `rdi, rsi, rdx, r10, r8, r9` |
+| 번호 예 | `exit`=1, `read`=3, `write`=4, `open`=5, `execve`=11 | `read`=0, `write`=1, `open`=2, `execve`=59, `exit`=60 |
+| **함수 호출** (참고) | cdecl: 인자가 **스택**, caller 가 정리 | SysV: 인자가 `rdi, rsi, rdx, rcx, r8, r9` |
+
+- 같은 이름의 syscall 이라도 **번호가 다르다**. 32비트 바이너리에 64비트 번호를 쓰면 엉뚱한 syscall 이 불린다.
+- 번호 조회처: Linux 소스 `arch/x86/entry/syscalls/syscall_64.tbl`, 헤더 `unistd_64.h`, pwntools `context.arch='amd64'; int(constants.SYS_open)`.
+- ⚠️ **macOS(XNU) 의 `man`·헤더 번호는 Linux 와 전혀 다르다.** 인자 *의미*(`man 2 open` 의 flags 등)는 거의 같지만 **번호는 Linux 표에서만** 확인한다.
+
+### G. `open` 과 `read` — 경로→fd, fd→메모리 (2026-10-31)
+
+| | `open` | `read` |
+|---|---|---|
+| 하는 일 | 경로로 파일을 찾아 열고 **fd 를 새로 만든다** | **이미 열린 fd** 에서 바이트를 꺼내 **메모리에 복사** |
+| 인자 | ① 경로 문자열의 **주소** ② flags ③ mode | ① fd ② 쓸 메모리 **주소** ③ 최대 길이 |
+| 반환 (`rax`) | 새 fd. 실패하면 음수 | 읽은 바이트 수. 0 = EOF, 실패하면 음수 |
+
+- 두 단계로 나뉜 이유: 경로 탐색과 권한 검사는 비싸니 `open` 에서 **한 번**만 하고, 이후는 fd 번호만으로 동작한다.
+- `open` 의 첫 인자는 문자열 자체가 아니라 **문자열이 있는 메모리의 주소**다 (레지스터는 8바이트).
+- `read` 의 쓰기 대상은 **쓰기 가능한 메모리**여야 하고, 길이는 그 영역의 크기를 넘기지 않는다.
+- **"가장 작은 빈 fd" 규칙**: `open` 은 그 시점에 쓰이지 않는 가장 작은 번호를 돌려준다. 0·1·2 가 열려 있으면 보통 3 이지만, 래퍼(socat 등)가 다른 fd 를 열어 두면 달라진다 → 하드코딩하지 말고 **반환값을 쓴다** (`ROP` §H).
+
 
 ## Related
 
@@ -121,6 +148,7 @@ asm volatile ( "명령어" : 출력 : 입력 : 파괴목록 );
 - External: local-only wargame tree (no-publish) — libc 없이 `execve("/bin/sh", NULL, NULL)`
   를 내기 위해. `exit(N)` 을 먼저 만들어 종료 코드로 파이프라인을 검증한 뒤 `write` →
   `execve` 로 올라갔다.
+- External: local-only wargame tree (no-publish) — `open → read → write` 세 syscall 을 gadget 으로 이은 문제. 번호를 Linux 표에서 찾고, `rax` 반환값을 다음 인자로 옮겼다 (`ROP` §H).
 
 ## Expand Later (`/deep` candidates)
 
